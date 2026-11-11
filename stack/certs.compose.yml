@@ -1,0 +1,10 @@
+# One-time TLS certificate generation:
+#   docker compose -f stack/certs.compose.yml run --rm generator
+services:
+  generator:
+    image: wazuh/wazuh-certs-generator:0.0.4
+    environment:
+      - CERT_TOOL_VERSION=4.14
+    volumes:
+      - ./certs/:/certificates/
+      - ./config/certs.yml:/config/certs.yml:ro
