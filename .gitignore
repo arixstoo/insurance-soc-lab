@@ -1,6 +1,7 @@
 # Secrets and generated material - never commit
 .env
 stack/certs/
+stack/secrets/
 *.pem
 *.key
 

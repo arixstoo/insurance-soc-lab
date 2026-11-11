@@ -4,7 +4,7 @@ title = "insurance-soc-lab"
 useDefault = true
 
 # Public lab defaults shipped by wazuh/wazuh-docker (documented in SECURITY.md).
-# They are replaced by generated secrets in roadmap phase 1.
+# scripts/rotate-passwords.sh replaces them in git-ignored files (stack/secrets/, .env).
 [allowlist]
 description = "Wazuh upstream lab defaults"
 paths = [
