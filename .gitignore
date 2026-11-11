@@ -1,0 +1,22 @@
+# Secrets and generated material - never commit
+.env
+stack/certs/
+*.pem
+*.key
+
+# Simulator output
+out/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.venv/
+
+# OS / editors
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
