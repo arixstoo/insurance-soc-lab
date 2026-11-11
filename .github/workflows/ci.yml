@@ -1,0 +1,43 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  lint-and-unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: pip install -e "simulator[dev]"
+      - name: Lint
+        run: ruff check simulator detection/tests --line-length 120
+      - name: Unit tests
+        run: pytest simulator -q
+      - name: Rules are well-formed XML
+        run: |
+          sudo apt-get install -y --no-install-recommends libxml2-utils
+          { echo "<root>"; cat detection/rules/insurco_rules.xml; echo "</root>"; } | xmllint --noout -
+      - name: Compose file is valid
+        run: cp .env.example .env && docker compose config --quiet
+
+  detection:
+    # Every rule is tested against the real Wazuh engine (wazuh-logtest)
+    runs-on: ubuntu-latest
+    needs: lint-and-unit
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install pyyaml
+      - name: Run detection tests
+        run: python detection/tests/run_tests.py
