@@ -5,23 +5,55 @@ on:
     branches: [main]
   pull_request:
   schedule:
-    - cron: "0 6 * * 1"   # weekly, Monday 06:00 UTC
+    - cron: "0 6 * * 1"   # weekly, Monday 06:00 UTC: new CVEs appear without any commit
 
 permissions:
   contents: read
+
+# Supply chain: actions pinned to full commit SHAs, tool images pinned to digests
+# (Dependabot bumps the action SHAs; the two image digests are bumped by hand).
+env:
+  GITLEAKS_IMAGE: zricethezav/gitleaks:v8.24.3@sha256:e1b35e12a8c6fa8901f060459cfb6b2fc4c484d3afbe3b029733a3bbfab07055
+  TRIVY_IMAGE: aquasec/trivy:0.76.1@sha256:790fd66d1697395d8693d1acaa1ea702406a20f109b6fc7bac8db623eca6c06c
 
 jobs:
   secrets:
     # Scans the whole git history; fails if a credential or private key is committed
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
       - name: gitleaks
         run: >
-          docker run --rm -v "$PWD:/repo" zricethezav/gitleaks:v8.24.3
+          docker run --rm -v "$PWD:/repo" "$GITLEAKS_IMAGE"
           git /repo --config /repo/.gitleaks.toml --redact --no-banner
+
+  images:
+    # The two images this repo builds: fail on any CRITICAL vulnerability (fixed or not)
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: agent
+            context: agents
+            tag: insurance-soc-lab/agent:ci
+          - name: simulator
+            context: simulator
+            tag: insurance-soc-lab/simulator:ci
+    name: trivy (${{ matrix.name }})
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Build
+        run: docker build -t "${{ matrix.tag }}" "${{ matrix.context }}"
+      - name: Trivy
+        # Vulnerability scanner only: secret scanning of the Wazuh agent layer times out
+        # and secrets are already covered by gitleaks. Accepted risks go in .trivyignore.
+        run: >
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v "$PWD:/src:ro"
+          "$TRIVY_IMAGE" image --scanners vuln --severity CRITICAL --exit-code 1
+          --ignorefile /src/.trivyignore --timeout 15m --no-progress "${{ matrix.tag }}"
 
   codeql:
     runs-on: ubuntu-latest
@@ -29,8 +61,8 @@ jobs:
       security-events: write
       contents: read
     steps:
-      - uses: actions/checkout@v7
-      - uses: github/codeql-action/init@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: github/codeql-action/init@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
         with:
           languages: python
-      - uses: github/codeql-action/analyze@v4
+      - uses: github/codeql-action/analyze@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3

@@ -8,24 +8,29 @@ on:
 permissions:
   contents: read
 
+# Actions are pinned to full commit SHAs (tag in the comment); Dependabot keeps both up to date.
 jobs:
   lint-and-unit:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.12"
       - name: Install
         run: pip install -e "simulator[dev]"
       - name: Lint
-        run: ruff check simulator detection/tests --line-length 120
+        run: ruff check simulator detection/tests scripts
+      - name: Shell scripts
+        run: shellcheck scripts/*.sh agents/entrypoint.sh
       - name: Unit tests
         run: pytest simulator -q
       - name: Rules are well-formed XML
         run: |
           sudo apt-get install -y --no-install-recommends libxml2-utils
           { echo "<root>"; cat detection/rules/insurco_rules.xml; echo "</root>"; } | xmllint --noout -
+      - name: ISM policy is valid JSON
+        run: python -m json.tool stack/config/wazuh_indexer/ism/alerts-retention.json > /dev/null
       - name: Compose file is valid
         run: cp .env.example .env && docker compose config --quiet
 
@@ -34,8 +39,8 @@ jobs:
     runs-on: ubuntu-latest
     needs: lint-and-unit
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.12"
       - run: pip install pyyaml

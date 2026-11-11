@@ -8,6 +8,7 @@ set -euo pipefail
 : "${LOG_FILE:?LOG_FILE is required}"
 export AGENT_GROUP="${AGENT_GROUP:-default}"
 
+# shellcheck disable=SC2016  # envsubst takes the variable names literally
 envsubst '${WAZUH_MANAGER} ${AGENT_NAME} ${AGENT_GROUP} ${LOG_FORMAT} ${LOG_FILE}' \
   < /etc/insurco/ossec.conf.tpl > /var/ossec/etc/ossec.conf
 chown root:wazuh /var/ossec/etc/ossec.conf && chmod 0640 /var/ossec/etc/ossec.conf

@@ -1,0 +1,3 @@
+# Accepted vulnerabilities for the agent and simulator images (CI: security.yml, job "images").
+# One CVE per line, each with: why it does not apply to the lab, who accepted it, and a review date.
+# Empty on purpose: as of 2026-11-11 neither image has a CRITICAL finding.
