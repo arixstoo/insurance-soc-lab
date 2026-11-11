@@ -1,0 +1,25 @@
+name: Detection request
+description: Propose a new detection rule
+labels: [detection]
+body:
+  - type: textarea
+    id: threat
+    attributes:
+      label: Threat / behaviour to detect
+      description: What the attacker or insider does, and why it matters for an insurer.
+    validations:
+      required: true
+  - type: input
+    id: mitre
+    attributes:
+      label: MITRE ATT&CK technique
+      placeholder: T1213 - Data from Information Repositories
+  - type: textarea
+    id: logs
+    attributes:
+      label: Example log lines (synthetic)
+      render: text
+  - type: textarea
+    id: fp
+    attributes:
+      label: Expected false positives

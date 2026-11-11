@@ -1,0 +1,30 @@
+name: Bug report
+description: Something in the lab does not work as documented
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, what you saw.
+    validations:
+      required: true
+  - type: textarea
+    id: status
+    attributes:
+      label: Output of `python scripts/lab_status.py`
+      render: text
+  - type: input
+    id: env
+    attributes:
+      label: Environment
+      placeholder: "Docker 29.1, Compose 2.40, Ubuntu 24.04 / WSL2 / macOS"
+    validations:
+      required: true
+  - type: checkboxes
+    id: data
+    attributes:
+      label: Data check
+      options:
+        - label: I removed any real IP address, hostname, username or credential from this report.
+          required: true

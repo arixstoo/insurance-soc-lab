@@ -1,0 +1,15 @@
+title = "insurance-soc-lab"
+
+[extend]
+useDefault = true
+
+# Public lab defaults shipped by wazuh/wazuh-docker (documented in SECURITY.md).
+# They are replaced by generated secrets in roadmap phase 1.
+[allowlist]
+description = "Wazuh upstream lab defaults"
+paths = [
+  '''^stack/config/wazuh_indexer/internal_users\.yml$''',
+  '''^stack/config/wazuh_cluster/wazuh_manager\.conf$''',
+  '''^stack/config/wazuh_dashboard/wazuh\.yml$''',
+  '''^\.env\.example$''',
+]

@@ -1,0 +1,19 @@
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule: { interval: monthly }
+    commit-message: { prefix: "ci" }
+
+  - package-ecosystem: pip
+    directory: /simulator
+    schedule: { interval: monthly }
+    commit-message: { prefix: "build" }
+
+  - package-ecosystem: docker
+    directories: [/simulator, /agents]
+    schedule: { interval: monthly }
+    commit-message: { prefix: "build" }
+    # Wazuh is upgraded on purpose (manager and agents together), not by Dependabot
+    ignore:
+      - dependency-name: "wazuh/*"
