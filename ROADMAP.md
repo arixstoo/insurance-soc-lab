@@ -46,6 +46,9 @@ Status: ✅ done · 🔨 in progress · ⬜ planned
 - [ ] Indexer retention policy (ISM): delete alert indices after 30 days
 - [ ] Image scanning in CI (Trivy) for the agent and simulator images; fail on critical CVEs
 - [ ] Pin GitHub Actions to commit SHAs (supply-chain hygiene)
+- [ ] Deliberate base-image upgrades (Dependabot PRs #1 and #4 were deferred):
+      agent image to Ubuntu 24.04/26.04 once the Wazuh agent package supports it,
+      simulator to a current stable Python; full lab + tests before merging
 
 **Done when:** a fresh clone reaches 4 active agents and a first custom alert
 in under 10 minutes, with no default password left.
