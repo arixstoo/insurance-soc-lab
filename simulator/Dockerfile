@@ -1,4 +1,4 @@
-FROM python:3.12-slim
+FROM python:3.15-slim
 
 # Unprivileged user that owns the shared log volume
 RUN useradd --uid 10001 --create-home sim \
