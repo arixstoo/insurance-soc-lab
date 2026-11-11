@@ -50,14 +50,26 @@ On Linux hosts run `sudo sysctl -w vm.max_map_count=262144` once (OpenSearch).
 
 ```bash
 git clone https://github.com/arixstoo/insurance-soc-lab.git && cd insurance-soc-lab
-cp .env.example .env
-docker compose -f stack/certs.compose.yml run --rm generator   # TLS certificates, once
-docker compose up -d --build
-python scripts/lab_status.py                                   # agents + custom rules fired
+make certs                 # TLS certificates, once
+make rotate                # REQUIRED: replaces the public Wazuh default passwords (writes .env)
+make up                    # build, start, wait until healthy, apply 30-day alert retention
+make status                # agents active, defaults rejected, custom rules fired -> OK
 ```
 
-Dashboard: <https://localhost> (lab defaults in `.env` - change them, see [SECURITY.md](SECURITY.md)).
-A random attack scenario runs every 2-5 minutes. To trigger one now:
+On Windows PowerShell, the same verbs: `.\scripts\lab.ps1 certs`, `.\scripts\lab.ps1 rotate`,
+`.\scripts\lab.ps1 up`, `.\scripts\lab.ps1 status`. (`make up` / `lab.ps1 up` also run the
+first two steps by themselves if `stack/certs/` or `.env` is missing.)
+
+Without `make`: `docker compose -f stack/certs.compose.yml run --rm generator`,
+`scripts/rotate-passwords.sh`, `docker compose up -d --build --wait`, `python scripts/apply_ism.py`.
+
+Dashboard: <https://localhost>, user `admin`, password = `INDEXER_PASSWORD` in your `.env`.
+Skipping the rotate step leaves the public upstream passwords in place; `make status` reports
+it. Rotating a lab that is already running: `make rotate APPLY=1` (see [SECURITY.md](SECURITY.md)).
+
+On a machine that already has the images, the lab is healthy in about a minute and the
+first custom alert arrives within two. A random attack scenario runs every 2-5 minutes.
+To trigger one now:
 
 ```bash
 docker compose exec simulator insurco-sim list            # 6 scenarios + the rules they target
@@ -92,7 +104,7 @@ simulator/   insurco-sim: synthetic telemetry and attack scenarios (Python, test
 agents/      Wazuh agent image, config rendered from a template
 stack/       Wazuh configuration (adapted from wazuh-docker, see NOTICE)
 docs/        architecture, detection catalog, runbooks, production plan
-scripts/     lab status and helpers
+scripts/     lab.ps1, password rotation, retention policy, lab status
 ```
 
 ## About this public version

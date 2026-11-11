@@ -58,6 +58,16 @@ flowchart LR
 - **Pinned versions.** `WAZUH_VERSION` drives every image and the agent
   package, because Wazuh rejects agents newer than the manager.
 - **Local only.** Every published port is bound to `127.0.0.1`.
+- **No default password in use.** `scripts/rotate-passwords.sh` generates the
+  secrets into git-ignored files that compose mounts in place of the committed
+  upstream defaults ([SECURITY.md](../SECURITY.md)).
+- **Start order by health, not by luck.** Each Wazuh service has a health check
+  (manager: core daemons running; indexer: cluster health with the admin client
+  certificate; dashboard: `/api/status` as `kibanaserver`). Agents wait for a
+  healthy manager, the dashboard for a healthy indexer and manager, and `make up`
+  waits for all of them.
+- **Bounded storage.** An ISM policy deletes `wazuh-alerts-*` indices 30 days after
+  creation (`stack/config/wazuh_indexer/ism/`, applied by `scripts/apply_ism.py`).
 - **Simulated Windows events are JSON**, not real EVTX. That keeps the lab
   light and portable; real Windows telemetry (Sysmon) is a roadmap item.
 

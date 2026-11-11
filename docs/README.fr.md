@@ -27,13 +27,15 @@ Toutes les règles sont mappées sur MITRE ATT&CK : voir [detection-catalog.md](
 ## Démarrage rapide
 
 ```bash
-cp .env.example .env
-docker compose -f stack/certs.compose.yml run --rm generator
-docker compose up -d --build
-python scripts/lab_status.py
+make certs     # certificats TLS, une fois
+make rotate    # OBLIGATOIRE : remplace les mots de passe publics par défaut de Wazuh
+make up        # construit, démarre, attend que tout soit sain, applique la rétention 30 jours
+make status
 ```
 
-Dashboard : <https://localhost>. Déclencher un scénario :
+Sous Windows PowerShell : `.\scripts\lab.ps1 certs | rotate | up | status`.
+
+Dashboard : <https://localhost> (utilisateur `admin`, mot de passe `INDEXER_PASSWORD` du `.env`). Déclencher un scénario :
 `docker compose exec simulator insurco-sim inject insider`.
 
 ## À propos de cette version publique

@@ -39,13 +39,13 @@ Status: ✅ done · 🔨 in progress · ⬜ planned
 
 - [x] All ports bound to `127.0.0.1`; secrets read from `.env`
 - [x] Manager: `logall` on, agent re-enrollment without duplicates
-- [ ] `scripts/rotate-passwords.sh`: generate strong passwords, hash them into
-      `internal_users.yml`, update `.env` (removes the public defaults)
-- [ ] `make up / down / reset / status` (and a PowerShell equivalent)
-- [ ] Health checks on manager / indexer / dashboard; agents wait for a healthy manager
-- [ ] Indexer retention policy (ISM): delete alert indices after 30 days
-- [ ] Image scanning in CI (Trivy) for the agent and simulator images; fail on critical CVEs
-- [ ] Pin GitHub Actions to commit SHAs (supply-chain hygiene)
+- [x] `scripts/rotate-passwords.sh` (+ `.ps1`): generate strong passwords, hash them into
+      a git-ignored `internal_users.yml`, update `.env`; `--apply` rotates a running lab
+- [x] `make up / down / reset / status / test / lint / rotate` (and `scripts/lab.ps1`)
+- [x] Health checks on manager / indexer / dashboard; agents wait for a healthy manager
+- [x] Indexer retention policy (ISM): delete alert indices after 30 days (`scripts/apply_ism.py`)
+- [x] Image scanning in CI (Trivy) for the agent and simulator images; fail on critical CVEs
+- [x] Pin GitHub Actions to commit SHAs (supply-chain hygiene)
 - [ ] Deliberate base-image upgrades (Dependabot PRs #1 and #4 were deferred):
       agent image to Ubuntu 24.04/26.04 once the Wazuh agent package supports it,
       simulator to a current stable Python; full lab + tests before merging

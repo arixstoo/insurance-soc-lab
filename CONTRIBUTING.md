@@ -25,7 +25,7 @@ pre-commit install            # optional, runs ruff and basic checks on commit
 | Lint | `ruff check simulator detection/tests scripts` |
 | Unit tests | `pytest simulator` |
 | Detection tests (needs Docker) | `python detection/tests/run_tests.py` |
-| Run the lab | `docker compose up -d --build` then `python scripts/lab_status.py` |
+| Run the lab | `make rotate` (once), `make up`, then `make status` (PowerShell: `scripts/lab.ps1`) |
 
 ## Adding a detection
 

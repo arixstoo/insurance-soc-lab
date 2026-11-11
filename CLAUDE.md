@@ -29,7 +29,8 @@ honesty and documentation matter as much as features.
 | Unit tests | `cd simulator && python -m pytest -q` |
 | Detection tests | `python detection/tests/run_tests.py` (`-k <regex>` to filter) |
 | Certificates (once) | `docker compose -f stack/certs.compose.yml run --rm generator` |
-| Start lab | `docker compose up -d --build` |
+| Passwords (once, fresh lab) | `make rotate` / `scripts/rotate-passwords.sh` (running lab: `--apply`) |
+| Start lab | `make up` (PowerShell: `scripts/lab.ps1 up`) = `docker compose up -d --build --wait` + `scripts/apply_ism.py` |
 | Lab health | `python scripts/lab_status.py` |
 | Trigger a scenario | `docker compose exec simulator insurco-sim inject <name>` |
 | Stop / wipe | `docker compose down` / `docker compose down -v` |
