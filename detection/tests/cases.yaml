@@ -1,0 +1,174 @@
+# Detection test cases.
+# Each case feeds its log lines, in order, into one wazuh-logtest session
+# and checks the rule fired by the LAST line.
+#
+#   expect:     rule id that must fire on the last line
+#   expect_not: rule id that must NOT fire on the last line
+#   clock:      "night" (02:00) or "day" (12:00) manager clock, for <time> rules
+#
+# Placeholders: {ts} = syslog timestamp, {apache_ts} = Apache timestamp.
+# All IPs are documentation ranges (RFC 5737) or lab-private ranges.
+
+cases:
+  # ---------- SSH ----------
+  - name: single failed password stays a built-in alert
+    lines:
+      - "{ts} srv-linux-01 sshd[2101]: Failed password for root from 203.0.113.10 port 51001 ssh2"
+    expect: "5760"
+
+  - name: ssh brute force - 6 failures from one IP
+    lines:
+      - "{ts} srv-linux-01 sshd[2101]: Failed password for root from 203.0.113.10 port 51001 ssh2"
+      - "{ts} srv-linux-01 sshd[2102]: Failed password for root from 203.0.113.10 port 51002 ssh2"
+      - "{ts} srv-linux-01 sshd[2103]: Failed password for admin from 203.0.113.10 port 51003 ssh2"
+      - "{ts} srv-linux-01 sshd[2104]: Failed password for admin from 203.0.113.10 port 51004 ssh2"
+      - "{ts} srv-linux-01 sshd[2105]: Failed password for svc_backup from 203.0.113.10 port 51005 ssh2"
+      - "{ts} srv-linux-01 sshd[2106]: Failed password for svc_backup from 203.0.113.10 port 51006 ssh2"
+    expect: "100100"
+
+  - name: failures spread over different IPs are not a brute force
+    lines:
+      - "{ts} srv-linux-01 sshd[2201]: Failed password for root from 203.0.113.21 port 51001 ssh2"
+      - "{ts} srv-linux-01 sshd[2202]: Failed password for root from 203.0.113.22 port 51002 ssh2"
+      - "{ts} srv-linux-01 sshd[2203]: Failed password for root from 203.0.113.23 port 51003 ssh2"
+      - "{ts} srv-linux-01 sshd[2204]: Failed password for root from 203.0.113.24 port 51004 ssh2"
+      - "{ts} srv-linux-01 sshd[2205]: Failed password for root from 203.0.113.25 port 51005 ssh2"
+      - "{ts} srv-linux-01 sshd[2206]: Failed password for root from 203.0.113.26 port 51006 ssh2"
+    expect_not: "100100"
+
+  - name: success right after brute force = account compromise
+    clock: day
+    lines:
+      - "{ts} srv-linux-01 sshd[2301]: Failed password for root from 203.0.113.30 port 51001 ssh2"
+      - "{ts} srv-linux-01 sshd[2302]: Failed password for root from 203.0.113.30 port 51002 ssh2"
+      - "{ts} srv-linux-01 sshd[2303]: Failed password for root from 203.0.113.30 port 51003 ssh2"
+      - "{ts} srv-linux-01 sshd[2304]: Failed password for root from 203.0.113.30 port 51004 ssh2"
+      - "{ts} srv-linux-01 sshd[2305]: Failed password for root from 203.0.113.30 port 51005 ssh2"
+      - "{ts} srv-linux-01 sshd[2306]: Failed password for root from 203.0.113.30 port 51006 ssh2"
+      - "{ts} srv-linux-01 sshd[2307]: Accepted password for root from 203.0.113.30 port 51007 ssh2"
+    expect: "100101"
+
+  - name: normal daytime login is not flagged
+    clock: day
+    lines:
+      - "{ts} srv-linux-01 sshd[2401]: Accepted password for f.khelil from 10.20.10.15 port 50122 ssh2"
+    expect: "5715"
+
+  - name: login at night is flagged
+    clock: night
+    lines:
+      - "{ts} srv-linux-01 sshd[2501]: Accepted password for f.khelil from 10.20.10.15 port 50122 ssh2"
+    expect: "100102"
+
+  # ---------- sudo ----------
+  - name: routine sudo is not flagged
+    lines:
+      - "{ts} srv-linux-01 sudo:  k.meziane : TTY=pts/0 ; PWD=/home/k.meziane ; USER=root ; COMMAND=/usr/bin/apt update"
+    expect_not: "100110"
+
+  - name: sudo to a root shell
+    lines:
+      - "{ts} srv-linux-01 sudo:  k.meziane : TTY=pts/0 ; PWD=/home/k.meziane ; USER=root ; COMMAND=/bin/bash"
+    expect: "100110"
+
+  - name: sudo chmod on shadow
+    lines:
+      - "{ts} srv-linux-01 sudo:  k.meziane : TTY=pts/0 ; PWD=/tmp ; USER=root ; COMMAND=/usr/bin/chmod 777 /etc/shadow"
+    expect: "100110"
+
+  # ---------- web ----------
+  - name: normal page view
+    lines:
+      - '10.20.10.21 - - [{apache_ts}] "GET /policies/12345 HTTP/1.1" 200 5120 "-" "Mozilla/5.0"'
+    expect_not: "100120"
+
+  - name: sql injection
+    lines:
+      - '203.0.113.40 - - [{apache_ts}] "GET /claims/search?q=%27%20UNION%20SELECT%20username,password%20FROM%20users-- HTTP/1.1" 403 512 "-" "Mozilla/5.0"'
+    expect: "100120"
+
+  - name: cross-site scripting
+    lines:
+      - '203.0.113.41 - - [{apache_ts}] "GET /search?q=<script>alert(1)</script> HTTP/1.1" 403 512 "-" "Mozilla/5.0"'
+    expect: "100121"
+
+  - name: path traversal
+    lines:
+      - '203.0.113.42 - - [{apache_ts}] "GET /documents/download?file=../../../../etc/passwd HTTP/1.1" 403 512 "-" "Mozilla/5.0"'
+    expect: "100122"
+
+  - name: probe for .env
+    lines:
+      - '203.0.113.43 - - [{apache_ts}] "GET /.env HTTP/1.1" 404 196 "-" "Mozilla/5.0"'
+    expect: "100123"
+
+  - name: coordinated web attack from one IP
+    lines:
+      - '203.0.113.44 - - [{apache_ts}] "GET /claims/search?q=%27%20UNION%20SELECT%201,2-- HTTP/1.1" 403 512 "-" "Mozilla/5.0"'
+      - '203.0.113.44 - - [{apache_ts}] "GET /search?q=<script>alert(1)</script> HTTP/1.1" 403 512 "-" "Mozilla/5.0"'
+      - '203.0.113.44 - - [{apache_ts}] "GET /documents/download?file=../../etc/passwd HTTP/1.1" 403 512 "-" "Mozilla/5.0"'
+      - '203.0.113.44 - - [{apache_ts}] "GET /.env HTTP/1.1" 404 196 "-" "Mozilla/5.0"'
+      - '203.0.113.44 - - [{apache_ts}] "GET /backup.sql HTTP/1.1" 404 196 "-" "Mozilla/5.0"'
+    expect: "100129"
+
+  # ---------- database audit ----------
+  - name: normal single-record read
+    clock: day
+    lines:
+      - '{"log_type":"db_audit","db_user":"s.boukhalfa","table":"clients","query":"SELECT id, name FROM clients WHERE id = 4821","rows_returned":1,"source_ip":"10.20.10.31"}'
+    expect: "100130"
+
+  - name: one bulk read of a sensitive table
+    clock: day
+    lines:
+      - '{"log_type":"db_audit","db_user":"s.boukhalfa","table":"clients","query":"SELECT * FROM clients LIMIT 500","rows_returned":500,"source_ip":"10.20.10.31"}'
+    expect: "100131"
+
+  - name: repeated bulk reads by one user = insider threat
+    clock: day
+    lines:
+      - '{"log_type":"db_audit","db_user":"y.amrani","table":"clients","query":"SELECT * FROM clients LIMIT 500","rows_returned":500,"source_ip":"10.20.10.32"}'
+      - '{"log_type":"db_audit","db_user":"y.amrani","table":"claims","query":"SELECT * FROM claims LIMIT 400","rows_returned":400,"source_ip":"10.20.10.32"}'
+      - '{"log_type":"db_audit","db_user":"y.amrani","table":"payments","query":"SELECT * FROM payments LIMIT 300","rows_returned":300,"source_ip":"10.20.10.32"}'
+      - '{"log_type":"db_audit","db_user":"y.amrani","table":"policies","query":"SELECT * FROM policies LIMIT 450","rows_returned":450,"source_ip":"10.20.10.32"}'
+      - '{"log_type":"db_audit","db_user":"y.amrani","table":"clients","query":"SELECT * FROM clients LIMIT 500 OFFSET 500","rows_returned":500,"source_ip":"10.20.10.32"}'
+    expect: "100132"
+
+  - name: bulk read at night
+    clock: night
+    lines:
+      - '{"log_type":"db_audit","db_user":"l.brahimi","table":"claims","query":"SELECT * FROM claims LIMIT 800","rows_returned":800,"source_ip":"10.20.10.33"}'
+    expect: "100133"
+
+  # ---------- windows-style events ----------
+  - name: account created
+    lines:
+      - '{"log_type":"winsec","EventID":4720,"SubjectUserName":"it.admin","TargetUserName":"temp_audit","WorkstationName":"SRV-AD-01"}'
+    expect: "100143"
+
+  - name: member added to Administrators
+    lines:
+      - '{"log_type":"winsec","EventID":4732,"SubjectUserName":"it.admin","MemberName":"temp_audit","GroupName":"Administrators","WorkstationName":"SRV-AD-01"}'
+    expect: "100144"
+
+  - name: member added to a non-admin group is not critical
+    lines:
+      - '{"log_type":"winsec","EventID":4732,"SubjectUserName":"it.admin","MemberName":"n.bensalem","GroupName":"Claims-Readers","WorkstationName":"SRV-AD-01"}'
+    expect_not: "100144"
+
+  - name: single windows logon failure
+    lines:
+      - '{"log_type":"winsec","EventID":4625,"TargetUserName":"a.benali","IpAddress":"10.20.10.65","WorkstationName":"WS-CLAIMS-01"}'
+    expect: "100141"
+
+  - name: windows password guessing
+    lines:
+      - '{"log_type":"winsec","EventID":4625,"TargetUserName":"a.benali","IpAddress":"10.20.10.66","WorkstationName":"WS-CLAIMS-02"}'
+      - '{"log_type":"winsec","EventID":4625,"TargetUserName":"a.benali","IpAddress":"10.20.10.66","WorkstationName":"WS-CLAIMS-02"}'
+      - '{"log_type":"winsec","EventID":4625,"TargetUserName":"admin","IpAddress":"10.20.10.66","WorkstationName":"WS-CLAIMS-02"}'
+      - '{"log_type":"winsec","EventID":4625,"TargetUserName":"admin","IpAddress":"10.20.10.66","WorkstationName":"WS-CLAIMS-02"}'
+      - '{"log_type":"winsec","EventID":4625,"TargetUserName":"f.khelil","IpAddress":"10.20.10.66","WorkstationName":"WS-CLAIMS-02"}'
+      - '{"log_type":"winsec","EventID":4625,"TargetUserName":"f.khelil","IpAddress":"10.20.10.66","WorkstationName":"WS-CLAIMS-02"}'
+      - '{"log_type":"winsec","EventID":4625,"TargetUserName":"k.meziane","IpAddress":"10.20.10.66","WorkstationName":"WS-CLAIMS-02"}'
+      - '{"log_type":"winsec","EventID":4625,"TargetUserName":"k.meziane","IpAddress":"10.20.10.66","WorkstationName":"WS-CLAIMS-02"}'
+    expect: "100142"

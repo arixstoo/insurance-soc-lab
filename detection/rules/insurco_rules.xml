@@ -1,0 +1,221 @@
+<!--
+  insurance-soc-lab - custom detection rules for "InsurCo" (fictional insurer)
+  Rule ID range: 100100-100199
+  Every rule here has at least one test case in detection/tests/cases.yaml.
+  Run them with: python detection/tests/run_tests.py
+-->
+
+<group name="insurco,">
+
+  <!-- ===================================================== -->
+  <!-- Authentication (Linux / SSH)                           -->
+  <!-- ===================================================== -->
+
+  <!-- 5760 = built-in "sshd: authentication failed" (Failed password ...) -->
+  <rule id="100100" level="10" frequency="6" timeframe="120" ignore="60">
+    <if_matched_sid>5760</if_matched_sid>
+    <same_source_ip />
+    <description>InsurCo - SSH brute force: 6 failed logins from $(srcip) in 2 minutes</description>
+    <mitre>
+      <id>T1110.001</id>
+    </mitre>
+    <group>insurco_auth,brute_force,</group>
+  </rule>
+
+  <!-- 5715 = built-in "sshd: authentication success" -->
+  <rule id="100101" level="14" timeframe="300">
+    <if_sid>5715</if_sid>
+    <if_matched_sid>100100</if_matched_sid>
+    <same_source_ip />
+    <description>InsurCo - CRITICAL: successful SSH login from $(srcip) right after a brute force</description>
+    <mitre>
+      <id>T1110.001</id>
+      <id>T1078</id>
+    </mitre>
+    <group>insurco_auth,account_compromise,</group>
+  </rule>
+
+  <!-- Office hours at the insurer: 08:00-18:00. Note: <time> is evaluated on the
+       MANAGER clock when the event is analysed, not on the log timestamp. -->
+  <rule id="100102" level="8">
+    <if_sid>5715</if_sid>
+    <time>10 pm - 6 am</time>
+    <description>InsurCo - SSH login outside office hours by $(dstuser)</description>
+    <mitre>
+      <id>T1078</id>
+    </mitre>
+    <group>insurco_auth,after_hours,</group>
+  </rule>
+
+  <!-- ===================================================== -->
+  <!-- Privilege escalation                                  -->
+  <!-- ===================================================== -->
+
+  <!-- 5402 = built-in "Successful sudo to ROOT executed"
+       5403 = built-in "First time user executed sudo" (replaces 5402 the first time) -->
+  <rule id="100110" level="12">
+    <if_sid>5402,5403</if_sid>
+    <regex type="pcre2">COMMAND=(/bin/(ba)?sh\b|/bin/su\b|/usr/bin/su\b|/usr/bin/passwd root|.*chmod (-R )?777 /etc/(shadow|passwd|sudoers))</regex>
+    <description>InsurCo - Suspicious sudo command (root shell or credential file change) by $(srcuser)</description>
+    <mitre>
+      <id>T1548.003</id>
+    </mitre>
+    <group>insurco_privesc,privilege_escalation,</group>
+  </rule>
+
+  <!-- ===================================================== -->
+  <!-- Web application attacks (Apache access logs)          -->
+  <!-- ===================================================== -->
+
+  <!-- 31103/31164/31170/31171 = built-in SQL injection rules -->
+  <rule id="100120" level="11">
+    <if_sid>31103,31164,31170,31171</if_sid>
+    <description>InsurCo - SQL injection attempt on a business web app from $(srcip)</description>
+    <mitre>
+      <id>T1190</id>
+    </mitre>
+    <group>insurco_web,web_attack,sqli,</group>
+  </rule>
+
+  <!-- 31105 = built-in XSS rule -->
+  <rule id="100121" level="10">
+    <if_sid>31105</if_sid>
+    <description>InsurCo - Cross-site scripting attempt on a business web app from $(srcip)</description>
+    <mitre>
+      <id>T1190</id>
+    </mitre>
+    <group>insurco_web,web_attack,xss,</group>
+  </rule>
+
+  <!-- 31104 = built-in "Common web attack" (includes path traversal) -->
+  <rule id="100122" level="10">
+    <if_sid>31104</if_sid>
+    <url type="pcre2">(?i)(\.\./|\.\.%2f|%2e%2e)</url>
+    <description>InsurCo - Path traversal attempt from $(srcip)</description>
+    <mitre>
+      <id>T1190</id>
+      <id>T1083</id>
+    </mitre>
+    <group>insurco_web,web_attack,path_traversal,</group>
+  </rule>
+
+  <!-- Probing for secrets / backups (.env, .git, *.sql, ...) -->
+  <rule id="100123" level="8">
+    <if_sid>31100,31101,31108</if_sid>
+    <url type="pcre2">(?i)/(\.env|\.git/|[^ ?]*\.(sql|bak|old)\b|config\.php|wp-config\.php)</url>
+    <description>InsurCo - Probe for secrets or backup files from $(srcip)</description>
+    <mitre>
+      <id>T1595.003</id>
+    </mitre>
+    <group>insurco_web,web_scan,</group>
+  </rule>
+
+  <!-- Correlation: 5 web attacks from the same IP in 5 minutes -->
+  <rule id="100129" level="13" frequency="5" timeframe="300" ignore="120">
+    <if_matched_group>insurco_web</if_matched_group>
+    <same_source_ip />
+    <description>InsurCo - Coordinated web attack campaign from $(srcip)</description>
+    <mitre>
+      <id>T1190</id>
+    </mitre>
+    <group>insurco_web,coordinated_attack,</group>
+  </rule>
+
+  <!-- ===================================================== -->
+  <!-- Insurance-specific: customer data access (DB audit)   -->
+  <!-- Logs are JSON lines with "log_type": "db_audit"       -->
+  <!-- ===================================================== -->
+
+  <rule id="100130" level="0">
+    <decoded_as>json</decoded_as>
+    <field name="log_type">^db_audit$</field>
+    <description>InsurCo - Database audit event</description>
+    <group>insurco_db,</group>
+  </rule>
+
+  <!-- One bulk read of a sensitive table (100+ rows, no WHERE on an id) -->
+  <rule id="100131" level="7">
+    <if_sid>100130</if_sid>
+    <field name="table" type="pcre2">^(clients|policies|claims|payments|beneficiaries)$</field>
+    <field name="rows_returned" type="pcre2">^[1-9][0-9]{2,}$</field>
+    <description>InsurCo - Bulk read of sensitive table $(table) by $(db_user)</description>
+    <mitre>
+      <id>T1213</id>
+    </mitre>
+    <group>insurco_db,data_access,</group>
+  </rule>
+
+  <!-- Same user doing 5 bulk reads in 5 minutes = possible insider exfiltration -->
+  <rule id="100132" level="12" frequency="5" timeframe="300" ignore="300">
+    <if_matched_sid>100131</if_matched_sid>
+    <same_field>db_user</same_field>
+    <description>InsurCo - Mass customer data access by $(db_user): possible insider fraud</description>
+    <mitre>
+      <id>T1213</id>
+      <id>T1530</id>
+    </mitre>
+    <group>insurco_db,insider_threat,</group>
+  </rule>
+
+  <rule id="100133" level="13">
+    <if_sid>100131</if_sid>
+    <time>10 pm - 6 am</time>
+    <description>InsurCo - Bulk customer data read OUTSIDE office hours by $(db_user)</description>
+    <mitre>
+      <id>T1213</id>
+      <id>T1078</id>
+    </mitre>
+    <group>insurco_db,insider_threat,after_hours,</group>
+  </rule>
+
+  <!-- ===================================================== -->
+  <!-- Windows-style security events (JSON)                  -->
+  <!-- Logs are JSON lines with "log_type": "winsec"          -->
+  <!-- ===================================================== -->
+
+  <rule id="100140" level="0">
+    <decoded_as>json</decoded_as>
+    <field name="log_type">^winsec$</field>
+    <description>InsurCo - Windows security event</description>
+    <group>insurco_windows,</group>
+  </rule>
+
+  <rule id="100141" level="5">
+    <if_sid>100140</if_sid>
+    <field name="EventID">^4625$</field>
+    <description>InsurCo - Windows logon failure for $(TargetUserName)</description>
+    <group>insurco_windows,authentication_failed,</group>
+  </rule>
+
+  <rule id="100142" level="10" frequency="8" timeframe="120" ignore="60">
+    <if_matched_sid>100141</if_matched_sid>
+    <same_field>IpAddress</same_field>
+    <description>InsurCo - Windows password guessing from $(IpAddress)</description>
+    <mitre>
+      <id>T1110</id>
+    </mitre>
+    <group>insurco_windows,brute_force,</group>
+  </rule>
+
+  <rule id="100143" level="8">
+    <if_sid>100140</if_sid>
+    <field name="EventID">^4720$</field>
+    <description>InsurCo - New user account $(TargetUserName) created by $(SubjectUserName)</description>
+    <mitre>
+      <id>T1136.001</id>
+    </mitre>
+    <group>insurco_windows,account_management,</group>
+  </rule>
+
+  <rule id="100144" level="13">
+    <if_sid>100140</if_sid>
+    <field name="EventID">^4732$</field>
+    <field name="GroupName" type="pcre2">(?i)^(administrators|domain admins)$</field>
+    <description>InsurCo - CRITICAL: $(MemberName) added to $(GroupName)</description>
+    <mitre>
+      <id>T1098</id>
+    </mitre>
+    <group>insurco_windows,privilege_escalation,</group>
+  </rule>
+
+</group>
