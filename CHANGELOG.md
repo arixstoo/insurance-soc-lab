@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [0.2.0] - 2026-11-11 - Hardened one-command SIEM
 
 ### Added
 - `scripts/rotate-passwords.sh` / `.ps1`: generated passwords for the indexer `admin` and
@@ -19,6 +19,8 @@
   ISM policy JSON check, `ruff` on `scripts/`.
 
 ### Changed
+- Agent image on Ubuntu 26.04 (was 22.04), simulator on Python 3.15 (was 3.12),
+  verified end to end: clean lab start, 4 agents, first custom alert in 71 s.
 - Every GitHub Action pinned to a full commit SHA (version in a comment); gitleaks and
   Trivy images pinned to digests.
 - Compose mounts `INDEXER_USERS_FILE` / `DASHBOARD_API_CONFIG` (defaults: the committed

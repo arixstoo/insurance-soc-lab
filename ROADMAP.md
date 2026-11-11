@@ -7,7 +7,7 @@ Status: ✅ done · 🔨 in progress · ⬜ planned
 | Phase | Theme | Release | Status |
 |---|---|---|---|
 | 0 | Foundations: repo, CI, tested rules | `v0.1.0` | ✅ |
-| 1 | Hardened one-command SIEM | `v0.2.0` | 🔨 |
+| 1 | Hardened one-command SIEM | `v0.2.0` | ✅ |
 | 2 | Endpoints and telemetry v3 | `v0.3.0` | 🔨 |
 | 3 | Detection engineering v2 | `v0.4.0` | ⬜ |
 | 4 | Real services, real attacks in the lab | `v0.5.0` | ⬜ |
@@ -33,7 +33,7 @@ Status: ✅ done · 🔨 in progress · ⬜ planned
 
 **Done when:** `python detection/tests/run_tests.py` -> 24/24, CI green.
 
-## Phase 1 - Hardened one-command SIEM 🔨
+## Phase 1 - Hardened one-command SIEM ✅
 
 **Goal:** `docker compose up -d` gives a working, reasonably secure SIEM.
 
@@ -46,9 +46,9 @@ Status: ✅ done · 🔨 in progress · ⬜ planned
 - [x] Indexer retention policy (ISM): delete alert indices after 30 days (`scripts/apply_ism.py`)
 - [x] Image scanning in CI (Trivy) for the agent and simulator images; fail on critical CVEs
 - [x] Pin GitHub Actions to commit SHAs (supply-chain hygiene)
-- [ ] Deliberate base-image upgrades (Dependabot PRs #1 and #4 were deferred):
-      agent image to Ubuntu 24.04/26.04 once the Wazuh agent package supports it,
-      simulator to a current stable Python; full lab + tests before merging
+- [x] Deliberate base-image upgrades (Dependabot PRs #1 and #4): agent image on
+      Ubuntu 26.04 (`wazuh-agent 4.14.9-1`), simulator on Python 3.15; verified with a
+      clean lab start, all tests and a Trivy scan (0 critical)
 
 **Done when:** a fresh clone reaches 4 active agents and a first custom alert
 in under 10 minutes, with no default password left.
