@@ -1,6 +1,6 @@
 # Wazuh agent simulating one InsurCo host.
 # The agent version MUST be <= the manager version (lesson learned during the internship).
-FROM ubuntu:22.04
+FROM ubuntu:26.04
 
 ARG WAZUH_VERSION=4.14.9
 ENV DEBIAN_FRONTEND=noninteractive
