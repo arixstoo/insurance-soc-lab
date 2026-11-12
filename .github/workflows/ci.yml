@@ -20,9 +20,9 @@ jobs:
       - name: Install
         run: pip install -e "simulator[dev]"
       - name: Lint
-        run: ruff check simulator detection/tests scripts
+        run: ruff check simulator detection/tests scripts real
       - name: Shell scripts
-        run: shellcheck scripts/*.sh agents/entrypoint.sh
+        run: shellcheck scripts/*.sh agents/entrypoint.sh real/common/*.sh real/*/start.sh real/db/stop.sh
       - name: Unit tests
         run: pytest simulator -q
       - name: Every rule has a positive and a negative case
@@ -37,7 +37,10 @@ jobs:
       - name: ISM policy is valid JSON
         run: python -m json.tool stack/config/wazuh_indexer/ism/alerts-retention.json > /dev/null
       - name: Compose file is valid
-        run: cp .env.example .env && docker compose config --quiet
+        run: |
+          cp .env.example .env
+          docker compose config --quiet
+          docker compose --profile real config --quiet
 
   detection:
     # Every rule is tested against the real Wazuh engine (wazuh-logtest)

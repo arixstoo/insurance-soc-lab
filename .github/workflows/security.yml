@@ -55,6 +55,40 @@ jobs:
           "$TRIVY_IMAGE" image --scanners vuln --severity CRITICAL --exit-code 1
           --ignorefile /src/.trivyignore --timeout 15m --no-progress "${{ matrix.tag }}"
 
+  real-images:
+    # The real hosts of compose profile `real` are built FROM the agent image (build context
+    # `agent`), plus the test client: same gate, any CRITICAL vulnerability fails.
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: real-linux
+            dockerfile: real/linux/Dockerfile
+          - name: real-web
+            dockerfile: real/web/Dockerfile
+          - name: real-db
+            dockerfile: real/db/Dockerfile
+          - name: real-client
+            dockerfile: real/client/Dockerfile
+    name: trivy (${{ matrix.name }})
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Build
+        run: |
+          docker build -t insurance-soc-lab/agent:ci agents
+          if [ "${{ matrix.name }}" = real-client ]; then
+            docker build -t "insurance-soc-lab/${{ matrix.name }}:ci" real/client
+          else
+            docker build --build-context agent=docker-image://insurance-soc-lab/agent:ci \
+              -f "${{ matrix.dockerfile }}" -t "insurance-soc-lab/${{ matrix.name }}:ci" real
+          fi
+      - name: Trivy
+        run: >
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v "$PWD:/src:ro"
+          "$TRIVY_IMAGE" image --scanners vuln --severity CRITICAL --exit-code 1
+          --ignorefile /src/.trivyignore --timeout 15m --no-progress "insurance-soc-lab/${{ matrix.name }}:ci"
+
   codeql:
     runs-on: ubuntu-latest
     permissions:
