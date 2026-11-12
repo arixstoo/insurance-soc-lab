@@ -1,0 +1,87 @@
+name: e2e
+
+# The whole lab on a GitHub runner: certificates, generated passwords, build, 4 agents,
+# every attack scenario injected, every expected rule asserted in the indexer.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+# Actions are pinned to full commit SHAs (tag in the comment); Dependabot keeps both up to date.
+jobs:
+  lab:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      # Only the injected scenarios: a random attack just before them could open a
+      # correlation rule's `ignore` window and hide the alert under test.
+      SIM_ATTACK_MIN: "86400"
+      SIM_ATTACK_MAX: "86400"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+      - run: pip install pyyaml
+
+      - name: Kernel setting required by OpenSearch
+        run: sudo sysctl -w vm.max_map_count=262144
+
+      - name: Manager clock at midday
+        # <time> rules use the manager clock. The detection test runner's helper gives a
+        # POSIX TZ whose local time is 12:00 now, so night-only rules (100102, 100133)
+        # cannot fire and 100131 / 100132 are not replaced by their night variant.
+        # Night-only rules are excluded from the check by scripts/e2e.sh.
+        run: |
+          tz="$(python -c 'import sys; sys.path.insert(0, "detection/tests"); from run_tests import posix_tz_for_hour; print(posix_tz_for_hour(12))')"
+          echo "LAB_TZ=$tz" >> "$GITHUB_ENV"
+          echo "LAB_TZ=$tz"
+
+      - name: Certificates
+        run: |
+          make certs
+          # the public CA certificate is read by curl and the Python scripts as the runner user
+          sudo chmod a+r stack/certs/root-ca.pem
+          ls -l stack/certs
+
+      - name: Start the lab (generated passwords, build, wait until healthy, retention)
+        run: make up PYTHON=python
+
+      - name: End-to-end check
+        run: bash scripts/e2e.sh
+
+      - name: Lab status
+        run: python scripts/lab_status.py
+
+      - name: End-to-end delay
+        run: python scripts/measure_latency.py --count 5
+
+      - name: Events per host per minute
+        run: docker compose exec -T simulator insurco-sim stats --minutes 5
+
+      - name: Collect compose logs
+        if: failure()
+        run: |
+          mkdir -p e2e-logs
+          docker compose ps -a > e2e-logs/ps.txt 2>&1 || true
+          docker compose logs --no-color --timestamps > e2e-logs/compose.log 2>&1 || true
+          docker compose exec -T wazuh.manager cat /var/ossec/logs/ossec.log > e2e-logs/manager-ossec.log 2>&1 || true
+
+      - name: Upload compose logs
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: e2e-compose-logs
+          path: e2e-logs/
+          retention-days: 7
+
+      - name: Tear down
+        if: always()
+        run: docker compose down -v
