@@ -48,6 +48,18 @@ cases:
       - "{ts} srv-linux-01 sshd[2307]: Accepted password for root from 203.0.113.30 port 51007 ssh2"
     expect: "100101"
 
+  - name: success right after brute force at night is still account compromise
+    clock: night
+    lines:
+      - "{ts} srv-linux-01 sshd[2311]: Failed password for root from 203.0.113.31 port 51001 ssh2"
+      - "{ts} srv-linux-01 sshd[2312]: Failed password for root from 203.0.113.31 port 51002 ssh2"
+      - "{ts} srv-linux-01 sshd[2313]: Failed password for root from 203.0.113.31 port 51003 ssh2"
+      - "{ts} srv-linux-01 sshd[2314]: Failed password for root from 203.0.113.31 port 51004 ssh2"
+      - "{ts} srv-linux-01 sshd[2315]: Failed password for root from 203.0.113.31 port 51005 ssh2"
+      - "{ts} srv-linux-01 sshd[2316]: Failed password for root from 203.0.113.31 port 51006 ssh2"
+      - "{ts} srv-linux-01 sshd[2317]: Accepted password for root from 203.0.113.31 port 51007 ssh2"
+    expect: "100101"
+
   - name: normal daytime login is not flagged
     clock: day
     lines:
