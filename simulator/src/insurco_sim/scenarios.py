@@ -29,8 +29,14 @@ class Scenario:
 
 
 def background_event(rng: random.Random, now: datetime) -> Event:
-    """One event of normal daily activity (weighted mix)."""
-    builders: list[tuple[int, Callable[[], Event]]] = [
+    """One event of normal daily activity (weighted mix).
+
+    Includes legitimate activity that looks like an attack, as a real SOC sees it: the
+    reporting service account's bulk extracts and the internal vulnerability scanner
+    (both allow-listed in detection/lists/), rare onboarding (account creation) and
+    group changes to non-admin groups. The 24 h noise report replays this mix.
+    """
+    builders: list[tuple[float, Callable[[], Event]]] = [
         (30, lambda: ("web", e.web_request(rng, now))),
         (20, lambda: ("db", e.db_query(rng, now))),
         (15, lambda: ("linux", e.ssh_success(rng, now))),
@@ -38,6 +44,10 @@ def background_event(rng: random.Random, now: datetime) -> Event:
         (6, lambda: ("linux", e.ssh_failure(rng, now))),  # people mistype passwords
         (6, lambda: ("workstation", e.win_event(rng, now, 4625))),
         (8, lambda: ("linux", e.sudo(rng, now))),
+        (1, lambda: ("db", e.db_query(rng, now, bulk=True, user=c.REPORTING_ACCOUNT, ip=c.REPORTING_HOST_IP))),
+        (1, lambda: ("web", e.web_attack(rng, now, ip=c.SCANNER_IP))),
+        (0.3, lambda: ("workstation", e.win_event(rng, now, 4732))),  # access granted to a business group
+        (0.005, lambda: ("workstation", e.win_event(rng, now, 4720))),  # onboarding: ~1-2 accounts a day
     ]
     weights = [w for w, _ in builders]
     return rng.choices([b for _, b in builders], weights=weights)[0]()
@@ -93,8 +103,10 @@ SCENARIOS: dict[str, Scenario] = {s.name: s for s in [
              ("100120", "100121", "100122", "100123", "100129"), _web_campaign),
     Scenario("privesc", "An employee uses sudo to get a root shell and touch credential files",
              ("100110",), _privesc),
+    # The 4732 completes the two-step correlation, so it raises 100145 *instead of* 100144
+    # (one event = one alert); 100144 alone is covered by detection/tests/cases.yaml.
     Scenario("rogue_admin", "A new account is created and added to Administrators",
-             ("100143", "100144"), _rogue_admin),
+             ("100143", "100145"), _rogue_admin),
     Scenario("password_spray", "Many accounts fail to log on from one workstation IP",
-             ("100141", "100142"), _password_spray),
+             ("100142",), _password_spray),  # 100141 is level 2 since phase 3: matched, never alerted
 ]}

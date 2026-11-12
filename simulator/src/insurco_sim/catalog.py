@@ -17,6 +17,13 @@ SERVICE_ACCOUNTS = ["svc_backup", "svc_reporting", "it.admin"]
 INVALID_USERS = ["root", "admin", "test", "oracle", "postgres"]
 
 INTERNAL_IPS = [f"10.20.10.{i}" for i in range(10, 80)]
+
+# Legitimate activity that LOOKS suspicious. Both are allow-listed in detection/lists/:
+# keep these values in sync with db-service-accounts and scanner-ips.
+REPORTING_ACCOUNT = "svc_reporting"   # scheduled BI / regulatory extracts: bulk reads
+REPORTING_HOST_IP = "10.20.20.5"
+SCANNER_IP = "10.20.5.10"             # internal vulnerability scanner: web attack payloads
+GROUPS = ["Claims-Readers", "Underwriting", "Finance-Users", "Agency-Staff"]  # non-admin groups
 EXTERNAL_IPS = [f"203.0.113.{i}" for i in range(10, 60)] + [f"198.51.100.{i}" for i in range(10, 40)]
 
 SENSITIVE_TABLES = ["clients", "policies", "claims", "payments", "beneficiaries"]
