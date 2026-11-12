@@ -195,6 +195,11 @@ Not detected yet - each one is a roadmap item or an accepted trade-off:
   no 100101); likewise 120 s for 100129 and 300 s for 100132 / 100134. The underlying
   per-event alerts (5760, 100120-100123, 100131 / 100137) still fire. Mitigation to study:
   shorter `ignore` values, measured against the noise budget.
+- **A burst of exactly N events within milliseconds** (phase 4, GitHub Actions): five bulk
+  reads ~40 ms apart once raised five 100137 and no 100132 - likely analysisd matching on
+  several threads. A scripted export that fast may evade the correlation; each read still
+  alerts (100131 / 100137, level 7). Mitigation to study: a lower frequency, or a rule on
+  rows summed per session.
 - **Two-step correlation across more than 10 minutes** (100145): an attacker who waits
   is only caught by 100143 and 100144 separately.
 

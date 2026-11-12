@@ -24,6 +24,7 @@ import socket
 import subprocess
 import sys
 import tempfile
+import time
 from pathlib import Path
 
 import yaml
@@ -35,6 +36,12 @@ CASES = Path(os.environ.get("LAB_CASES", "/etc/lab-traffic/cases.yaml"))
 USER_AGENT = "lab-traffic/1.0 (insurance-soc-lab test client)"
 REQUEST = re.compile(r'"(?:GET|POST|HEAD) (\S+) HTTP/1\.[01]"')
 SENSITIVE_TABLES = ["clients", "policies", "claims", "payments", "beneficiaries"]
+# Pause between the requests / reads of one burst. analysisd matches rules on several
+# threads: 5 events within ~100 ms can be matched before the previous ones are recorded,
+# and a 5-event correlation (100132) then misses (seen on GitHub Actions). People and
+# scripts take seconds between exports anyway.
+WEB_PAUSE = 0.5
+DB_PAUSE = 1.0
 
 # Custom rules each job must raise on the real host (day clock; see docs/real-services.md).
 # "One event, one alert": the request / read that completes a correlation raises the
@@ -132,9 +139,11 @@ def job_web() -> int:
         return 1
     for path in benign:
         say("web", f"{http_get(host, path)}  {path}")
+        time.sleep(WEB_PAUSE)
     for round_ in (1, 2):  # every kind twice (one event, one alert)
         for path in attacks:
             say("web", f"{http_get(host, path)}  {path}  (malformed, round {round_})")
+            time.sleep(WEB_PAUSE)
     return 0
 
 
@@ -176,11 +185,13 @@ def job_db() -> int:
             n = psql(host, "svc_reporting", "db-reporting", f"SELECT * FROM {table}", Path(tmp, f"bi-{table}.csv"))
             say("db", f"svc_reporting extract {table}: {n} rows (allow-listed)")
             ok &= n >= 100
+            time.sleep(DB_PAUSE)
         # Bulk export by a person: 5 sensitive tables in a row
         for table in SENSITIVE_TABLES:
             n = psql(host, "lab_analyst", "db-analyst", f"SELECT * FROM {table}", Path(tmp, f"{table}.csv"))
             say("db", f"lab_analyst export {table}: {n} rows")
             ok &= n >= 100
+            time.sleep(DB_PAUSE)
     return 0 if ok else 1
 
 

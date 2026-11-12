@@ -129,6 +129,13 @@ the group's rules defined *before* it, so the real block sits above 100132 in th
   after it fires, whatever the source address or user. `e2e.sh` now sends the real traffic
   first and waits longer than the largest `ignore` (300 s); the detection gap ("a second
   attacker inside the window is not correlated") is listed in the catalog.
+- **Bursts can slip past a correlation** (seen on GitHub Actions, likely a race):
+  `lab_analyst`'s five exports, ~40 ms apart, raised five 100137 and no 100132 on the CI
+  runner, while the same burst correlated locally. analysisd matches rules on several
+  threads, so the 5th event can be matched before the previous ones are recorded. With 1 s
+  between exports (`DB_PAUSE` in `lab-traffic`, realistic for a person) it correlates. An
+  automated export firing its queries within milliseconds may therefore evade 100132; the
+  per-read 100137 alerts still fire. Listed in the catalog's gaps.
 - **Rule tree shape matters** (two parents, file order): see above.
 - **`PerSourcePenalties`** would have hidden the brute-force-then-success pattern from the
   test (the successful login is refused); in production it is a control worth keeping.

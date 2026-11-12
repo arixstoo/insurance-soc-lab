@@ -34,6 +34,10 @@
 - `make down` / `make reset` (and `lab.ps1`) also stop the real hosts.
 
 ### Found (documented, not changed)
+- A burst of 5 bulk reads ~40 ms apart missed 100132 once on a CI runner (likely a race in
+  analysisd's rule-matching threads); `lab-traffic` spaces them 1 s apart. Coverage gap noted.
+- The replay engine's 5 ms clock settle was too short on a busy CI runner (two timed window
+  cases flipped); detection tests now wait 0.1 s (`REPLAY_SETTLE`), the noise replay keeps 5 ms.
 - Wazuh `ignore` mutes the whole rule after it fires, whatever the source: a second attacker
   inside the window raises no correlation (100100 60 s, 100129 120 s, 100132 / 100134 300 s).
   Coverage gap in the catalog; `e2e.sh` sends the real traffic first, then waits 315 s.
