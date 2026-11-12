@@ -54,6 +54,10 @@ services:
       - ./stack/config/wazuh_cluster/wazuh_manager.conf:/wazuh-config-mount/etc/ossec.conf:ro
       # Detection-as-code: the rules live in git, not inside the container
       - ./detection/rules/insurco_rules.xml:/var/ossec/etc/rules/insurco_rules.xml:ro
+      - ./detection/decoders/0005-insurco_decoders.xml:/var/ossec/etc/decoders/0005-insurco_decoders.xml:ro
+      # CDB lists are compiled next to their text file, so they cannot be mounted read-only
+      # in place: the image entrypoint copies /wazuh-config-mount into /var/ossec at start.
+      - ./detection/lists:/wazuh-config-mount/etc/lists/insurco:ro
     healthcheck:
       # Healthy once the daemons the agents and the dashboard rely on are all running
       test: ["CMD-SHELL", "test $$(/var/ossec/bin/wazuh-control status | grep -cE 'wazuh-(analysisd|remoted|authd|db|apid) is running') -eq 5"]

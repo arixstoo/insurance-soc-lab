@@ -1,8 +1,11 @@
 <!--
   insurance-soc-lab - custom detection rules for "InsurCo" (fictional insurer)
   Rule ID range: 100100-100199
-  Every rule here has at least one test case in detection/tests/cases.yaml.
+  Every rule has at least one positive AND one negative case in
+  detection/tests/cases.yaml (enforced by detection/tests/test_rule_coverage.py).
   Run them with: python detection/tests/run_tests.py
+  Decoders: detection/decoders/ - CDB allow-lists: detection/lists/ (etc/lists/insurco/)
+  The tables of docs/detection-catalog.md are generated from this file: scripts/gen_catalog.py
 -->
 
 <group name="insurco,">
@@ -36,15 +39,31 @@
   </rule>
 
   <!-- Office hours at the insurer: 08:00-18:00. Note: <time> is evaluated on the
-       MANAGER clock when the event is analysed, not on the log timestamp. -->
+       MANAGER clock when the event is analysed, not on the log timestamp.
+       Tuned in phase 3 (docs/tuning-report.md): "any login at night" raised ~300 alerts
+       per simulated day, all staff logging in from the office network. Kept: a night
+       login from OUTSIDE the internal network (100102) or to a privileged/shared account
+       from anywhere (100103). Staff night logins from 10.20.0.0/16 no longer alert. -->
   <rule id="100102" level="8">
     <if_sid>5715</if_sid>
     <time>10 pm - 6 am</time>
-    <description>InsurCo - SSH login outside office hours by $(dstuser)</description>
+    <srcip negate="yes">10.20.0.0/16</srcip>
+    <description>InsurCo - SSH login outside office hours by $(dstuser) from outside the internal network ($(srcip))</description>
     <mitre>
       <id>T1078</id>
     </mitre>
     <group>insurco_auth,after_hours,</group>
+  </rule>
+
+  <rule id="100103" level="10">
+    <if_sid>5715</if_sid>
+    <time>10 pm - 6 am</time>
+    <user type="pcre2">^(root|admin|administrator)$</user>
+    <description>InsurCo - SSH login to privileged account $(dstuser) outside office hours from $(srcip)</description>
+    <mitre>
+      <id>T1078.003</id>
+    </mitre>
+    <group>insurco_auth,after_hours,privileged_account,</group>
   </rule>
 
   <!-- ===================================================== -->
@@ -70,6 +89,7 @@
   <!-- 31103/31164/31170/31171 = built-in SQL injection rules -->
   <rule id="100120" level="11">
     <if_sid>31103,31164,31170,31171</if_sid>
+    <list field="srcip" lookup="not_address_match_key">etc/lists/insurco/scanner-ips</list>
     <description>InsurCo - SQL injection attempt on a business web app from $(srcip)</description>
     <mitre>
       <id>T1190</id>
@@ -80,6 +100,7 @@
   <!-- 31105 = built-in XSS rule -->
   <rule id="100121" level="10">
     <if_sid>31105</if_sid>
+    <list field="srcip" lookup="not_address_match_key">etc/lists/insurco/scanner-ips</list>
     <description>InsurCo - Cross-site scripting attempt on a business web app from $(srcip)</description>
     <mitre>
       <id>T1190</id>
@@ -91,6 +112,7 @@
   <rule id="100122" level="10">
     <if_sid>31104</if_sid>
     <url type="pcre2">(?i)(\.\./|\.\.%2f|%2e%2e)</url>
+    <list field="srcip" lookup="not_address_match_key">etc/lists/insurco/scanner-ips</list>
     <description>InsurCo - Path traversal attempt from $(srcip)</description>
     <mitre>
       <id>T1190</id>
@@ -99,10 +121,15 @@
     <group>insurco_web,web_attack,path_traversal,</group>
   </rule>
 
+  <!-- The internal vulnerability scanner (CDB list scanner-ips) is allow-listed on
+       100120-100123: its probes stay built-in alerts (31103, 31105, ...) and never feed
+       the campaign correlation 100129. Auth rules (100100) do NOT honour the list. -->
+
   <!-- Probing for secrets / backups (.env, .git, *.sql, ...) -->
   <rule id="100123" level="8">
     <if_sid>31100,31101,31108</if_sid>
     <url type="pcre2">(?i)/(\.env|\.git/|[^ ?]*\.(sql|bak|old)\b|config\.php|wp-config\.php)</url>
+    <list field="srcip" lookup="not_address_match_key">etc/lists/insurco/scanner-ips</list>
     <description>InsurCo - Probe for secrets or backup files from $(srcip)</description>
     <mitre>
       <id>T1595.003</id>
@@ -123,31 +150,36 @@
 
   <!-- ===================================================== -->
   <!-- Insurance-specific: customer data access (DB audit)   -->
-  <!-- Logs are JSON lines with "log_type": "db_audit"       -->
+  <!-- Decoded by insurco-db-audit (detection/decoders/)     -->
   <!-- ===================================================== -->
 
   <rule id="100130" level="0">
-    <decoded_as>json</decoded_as>
-    <field name="log_type">^db_audit$</field>
+    <decoded_as>insurco-db-audit</decoded_as>
     <description>InsurCo - Database audit event</description>
     <group>insurco_db,</group>
   </rule>
 
-  <!-- One bulk read of a sensitive table (100+ rows, no WHERE on an id) -->
+  <!-- One bulk read of a sensitive table (100+ rows). Service accounts in the CDB list
+       db-service-accounts (scheduled BI extracts) stay at 100130: no alert, and they never
+       feed 100132/100133. Group insurco_bulk_read is shared with 100133 for 100132. -->
   <rule id="100131" level="7">
     <if_sid>100130</if_sid>
     <field name="table" type="pcre2">^(clients|policies|claims|payments|beneficiaries)$</field>
     <field name="rows_returned" type="pcre2">^[1-9][0-9]{2,}$</field>
+    <list field="db_user" lookup="not_match_key">etc/lists/insurco/db-service-accounts</list>
     <description>InsurCo - Bulk read of sensitive table $(table) by $(db_user)</description>
     <mitre>
       <id>T1213</id>
     </mitre>
-    <group>insurco_db,data_access,</group>
+    <group>insurco_db,insurco_bulk_read,data_access,</group>
   </rule>
 
-  <!-- Same user doing 5 bulk reads in 5 minutes = possible insider exfiltration -->
+  <!-- Same user doing 5 bulk reads in 5 minutes = possible insider exfiltration.
+       Counts the GROUP insurco_bulk_read (100131 and 100133), not 100131 alone, so reads
+       on both sides of 22:00 add up. At night the 5th read is a child of 100133, which is
+       evaluated before this rule: the night variant is 100134. -->
   <rule id="100132" level="12" frequency="5" timeframe="300" ignore="300">
-    <if_matched_sid>100131</if_matched_sid>
+    <if_matched_group>insurco_bulk_read</if_matched_group>
     <same_field>db_user</same_field>
     <description>InsurCo - Mass customer data access by $(db_user): possible insider fraud</description>
     <mitre>
@@ -165,22 +197,41 @@
       <id>T1213</id>
       <id>T1078</id>
     </mitre>
+    <group>insurco_db,insurco_bulk_read,insider_threat,after_hours,</group>
+  </rule>
+
+  <!-- Night variant of 100132 (the "night gap" found by the e2e work): between 22:00 and
+       06:00 each bulk read raises 100133 *instead of* 100131, and Wazuh evaluates the
+       if_sid child 100133 before the group-based 100132, so 100132 never fired at night.
+       This rule is a child of 100133 and counts the same shared group. -->
+  <rule id="100134" level="14" frequency="5" timeframe="300" ignore="300">
+    <if_sid>100133</if_sid>
+    <if_matched_group>insurco_bulk_read</if_matched_group>
+    <same_field>db_user</same_field>
+    <description>InsurCo - Mass customer data access OUTSIDE office hours by $(db_user): possible insider fraud</description>
+    <mitre>
+      <id>T1213</id>
+      <id>T1530</id>
+      <id>T1078</id>
+    </mitre>
     <group>insurco_db,insider_threat,after_hours,</group>
   </rule>
 
   <!-- ===================================================== -->
   <!-- Windows-style security events (JSON)                  -->
-  <!-- Logs are JSON lines with "log_type": "winsec"          -->
+  <!-- Decoded by insurco-winsec (detection/decoders/)     -->
   <!-- ===================================================== -->
 
   <rule id="100140" level="0">
-    <decoded_as>json</decoded_as>
-    <field name="log_type">^winsec$</field>
+    <decoded_as>insurco-winsec</decoded_as>
     <description>InsurCo - Windows security event</description>
     <group>insurco_windows,</group>
   </rule>
 
-  <rule id="100141" level="5">
+  <!-- Level 2 = below the alert threshold (log_alert_level 3): matched, counted by the
+       correlation 100142, but not written as an alert. Tuned in phase 3: at level 5 it
+       raised ~1800 alerts per simulated day, one per mistyped password. -->
+  <rule id="100141" level="2">
     <if_sid>100140</if_sid>
     <field name="EventID">^4625$</field>
     <description>InsurCo - Windows logon failure for $(TargetUserName)</description>
@@ -216,6 +267,22 @@
       <id>T1098</id>
     </mitre>
     <group>insurco_windows,privilege_escalation,</group>
+  </rule>
+
+  <!-- Two-step correlation: an account is created (100143) and then added to an admin
+       group (100144) within 10 minutes. "Same account" = the normalised field `account`
+       (decoder insurco-winsec: TargetUserName on 4720, MemberName on 4732). The actor is
+       NOT required to be the same: a second admin finishing the job is just as bad. -->
+  <rule id="100145" level="15" timeframe="600">
+    <if_sid>100144</if_sid>
+    <if_matched_sid>100143</if_matched_sid>
+    <same_field>account</same_field>
+    <description>InsurCo - CRITICAL: account $(account) created and added to $(GroupName) within 10 minutes</description>
+    <mitre>
+      <id>T1136.001</id>
+      <id>T1098</id>
+    </mitre>
+    <group>insurco_windows,privilege_escalation,account_compromise,</group>
   </rule>
 
 </group>
