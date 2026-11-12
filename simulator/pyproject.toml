@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "insurco-sim"
-version = "3.0.0"
+version = "3.1.0"
 description = "Synthetic security telemetry for a fictional insurance company (SOC lab)"
 readme = "README.md"
 requires-python = ">=3.10"

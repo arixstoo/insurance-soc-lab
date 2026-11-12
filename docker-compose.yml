@@ -133,7 +133,7 @@ services:
   # ------------------------------------------------------------------ telemetry
   simulator:
     build: ./simulator
-    image: insurance-soc-lab/simulator:3.0.0
+    image: insurance-soc-lab/simulator:3.1.0
     restart: unless-stopped
     networks: [soc]
     environment:
@@ -144,6 +144,12 @@ services:
       - --rate=${SIM_RATE:-0.7}
       - --attack-min=${SIM_ATTACK_MIN:-120}
       - --attack-max=${SIM_ATTACK_MAX:-300}
+      # Office-hours profile (SIM_RATE is the peak rate); SIM_PROFILE=flat for a constant rate
+      - --profile=${SIM_PROFILE:-office}
+      - --office-hours=${SIM_OFFICE_HOURS:-08-18}
+      - --night-factor=${SIM_NIGHT_FACTOR:-0.1}
+      - --weekend-factor=${SIM_WEEKEND_FACTOR:-0.2}
+      - --weekend-days=${SIM_WEEKEND_DAYS:-fri,sat}
     volumes:
       - insurco-logs:/var/log/insurco
 
