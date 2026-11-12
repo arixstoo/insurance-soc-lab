@@ -1,0 +1,16 @@
+# real-linux-01 - lab settings, on top of Ubuntu's default sshd_config (drop-ins win:
+# sshd keeps the FIRST value it reads and the Include comes first).
+
+# Lab test accounts log in with a password (scripted with sshpass by real-client).
+PasswordAuthentication yes
+KbdInteractiveAuthentication no
+PermitRootLogin no
+AllowUsers lab.tester lab.ops
+UseDNS no
+LogLevel INFO
+
+# OpenSSH >= 9.8 penalises a source address after failed logins (PerSourcePenalties,
+# on by default) and refuses its next connections for a while. That is a GOOD default:
+# it is kept for everyone except the lab test client (real-client, 10.20.60.50), which
+# must be able to log in right after its scripted failures for rule 100101 to be tested.
+PerSourcePenaltyExemptList 10.20.60.50

@@ -13,6 +13,16 @@ x-agent: &agent
     wazuh.manager: { condition: service_healthy }
     simulator: { condition: service_healthy }
 
+# Real hosts (profile "real"): built FROM the agent image above, real services + an agent.
+x-real-host: &real-host
+  profiles: [real]
+  restart: unless-stopped
+  depends_on:
+    wazuh.manager: { condition: service_healthy }
+    real-secrets: { condition: service_completed_successfully }
+  volumes:
+    - real-secrets:/run/lab-secrets:ro
+
 services:
   # ------------------------------------------------------------------ SIEM
   wazuh.manager:
@@ -228,11 +238,121 @@ services:
         read_only: true
         volume: { subpath: ws-claims-01 }
 
+  # ------------------------------------------------------------------ real services (profile "real")
+  # docker compose --profile real up -d --build   (docs/real-services.md)
+  # Real sshd / nginx / PostgreSQL+pgaudit hosts next to the simulated ones, each with its
+  # own agent reading the logs the service really writes, and a test client that sends
+  # scripted traffic to THESE containers only. The default lab (no profile) is unchanged.
+
+  # One-shot: per-lab random passwords for the lab test accounts, kept in a volume shared by
+  # the real hosts and the test client (never in git, never in .env). Kept across restarts.
+  real-secrets:
+    image: alpine:3.22
+    profiles: [real]
+    network_mode: none
+    restart: "no"
+    command:
+      - sh
+      - -c
+      - |
+        umask 077
+        for name in ssh-test db-postgres db-analyst db-reporting db-portal; do
+          [ -s "/secrets/$$name" ] || head -c 48 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | head -c 24 > "/secrets/$$name"
+        done
+        ls /secrets
+    volumes:
+      - real-secrets:/secrets
+
+  real-linux-01:
+    <<: *real-host
+    build:
+      context: ./real
+      dockerfile: linux/Dockerfile
+      additional_contexts:
+        agent: service:srv-linux-01
+    image: insurance-soc-lab/real-linux:${WAZUH_VERSION:-4.14.9}
+    hostname: real-linux-01
+    # auditd needs the audit subsystem; refused by some Docker hosts (start.sh then warns)
+    cap_add: [AUDIT_CONTROL, AUDIT_READ]
+    environment:
+      - WAZUH_MANAGER=wazuh.manager
+      - AGENT_NAME=real-linux-01
+      - AGENT_GROUP=default
+      - TZ=${LAB_TZ:-Africa/Algiers}
+    networks:
+      soc: {}
+      lab-real: { ipv4_address: 10.20.60.11 }
+
+  real-web-01:
+    <<: *real-host
+    build:
+      context: ./real
+      dockerfile: web/Dockerfile
+      additional_contexts:
+        agent: service:srv-linux-01
+    image: insurance-soc-lab/real-web:${WAZUH_VERSION:-4.14.9}
+    hostname: real-web-01
+    environment:
+      - WAZUH_MANAGER=wazuh.manager
+      - AGENT_NAME=real-web-01
+      - AGENT_GROUP=default
+      - TZ=${LAB_TZ:-Africa/Algiers}
+    networks:
+      soc: {}
+      lab-real: { ipv4_address: 10.20.60.12 }
+
+  real-db-01:
+    <<: *real-host
+    build:
+      context: ./real
+      dockerfile: db/Dockerfile
+      additional_contexts:
+        agent: service:srv-linux-01
+    image: insurance-soc-lab/real-db:${WAZUH_VERSION:-4.14.9}
+    hostname: real-db-01
+    environment:
+      - WAZUH_MANAGER=wazuh.manager
+      - AGENT_NAME=real-db-01
+      - AGENT_GROUP=default
+      - TZ=${LAB_TZ:-Africa/Algiers}
+    networks:
+      soc: {}
+      lab-real: { ipv4_address: 10.20.60.13 }
+
+  # Test client: NOT a monitored host, no agent. Only on the internal lab-real network
+  # (no route out of Docker), and lab-traffic refuses any target that is not a lab host.
+  real-client:
+    profiles: [real]
+    build: ./real/client
+    image: insurance-soc-lab/real-client:1.0.0
+    hostname: real-client
+    restart: unless-stopped
+    init: true
+    networks:
+      lab-real: { ipv4_address: 10.20.60.50 }
+    environment:
+      - TZ=${LAB_TZ:-Africa/Algiers}
+    volumes:
+      - real-secrets:/run/lab-secrets:ro
+      - ./detection/tests/cases.yaml:/etc/lab-traffic/cases.yaml:ro
+    depends_on:
+      real-linux-01: { condition: service_healthy }
+      real-web-01: { condition: service_healthy }
+      real-db-01: { condition: service_healthy }
+
 networks:
   soc:
     name: islab-soc
+  # Real services only. internal: no gateway, nothing on it can reach the outside world.
+  lab-real:
+    name: islab-real
+    internal: true
+    ipam:
+      config:
+        - subnet: 10.20.60.0/24
 
 volumes:
+  real-secrets:
   insurco-logs:
   wazuh_api_configuration:
   wazuh_etc:
