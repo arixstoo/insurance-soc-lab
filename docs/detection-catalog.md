@@ -9,7 +9,7 @@ The tables marked *generated* are produced from the XML by `python scripts/gen_c
 (CI runs `--check`); everything else is hand-written.
 
 <!-- BEGIN GENERATED: summary (scripts/gen_catalog.py - do not edit by hand) -->
-21 rules (18 raise alerts, 3 are building blocks below the alert level), 12 ATT&CK techniques.
+25 rules (20 raise alerts, 5 are building blocks below the alert level), 12 ATT&CK techniques.
 <!-- END GENERATED: summary -->
 
 ## Rules (generated)
@@ -28,10 +28,14 @@ The tables marked *generated* are produced from the XML by `python scripts/gen_c
 | 100123 | 8 | Probe for secrets or backup files from $(srcip) | 31100, 31101, 31108 | not in list `scanner-ips` (srcip) | T1595.003 Wordlist Scanning | `insurco_web`, `web_scan` |
 | 100129 | 13 | Coordinated web attack campaign from $(srcip) | after group `insurco_web` | 5 in 300 s; same `srcip`; then quiet 120 s | T1190 Exploit Public-Facing Application | `insurco_web`, `coordinated_attack` |
 | 100130 | 0 | Database audit event | decoder `insurco-db-audit` | - | - | `insurco_db` |
-| 100131 | 7 | Bulk read of sensitive table $(table) by $(db_user) | 100130 | not in list `db-service-accounts` (db_user) | T1213 Data from Information Repositories | `insurco_db`, `insurco_bulk_read`, `data_access` |
+| 100131 | 7 | Bulk read of sensitive table $(table) by $(db_user) | 100130, 100136 | not in list `db-service-accounts` (db_user) | T1213 Data from Information Repositories | `insurco_db`, `insurco_bulk_read`, `data_access` |
+| 100135 | 0 | PostgreSQL audit event (pgaudit) | decoder `insurco-pgaudit` | - | - | `insurco_db` |
+| 100136 | 0 | PostgreSQL read (pgaudit) | 100135 | - | - | `insurco_db` |
+| 100137 | 7 | Bulk read of sensitive table $(table) by $(db_user) (PostgreSQL audit) | 100136 | not in list `db-service-accounts` (db_user) | T1213 Data from Information Repositories | `insurco_db`, `insurco_bulk_read`, `data_access` |
+| 100138 | 13 | Bulk customer data read OUTSIDE office hours by $(db_user) (PostgreSQL audit) | 100137 | only 10 pm - 6 am | T1213 Data from Information Repositories<br>T1078 Valid Accounts | `insurco_db`, `insurco_bulk_read`, `insider_threat`, `after_hours` |
 | 100132 | 12 | Mass customer data access by $(db_user): possible insider fraud | after group `insurco_bulk_read` | 5 in 300 s; same `db_user`; then quiet 300 s | T1213 Data from Information Repositories<br>T1530 Data from Cloud Storage | `insurco_db`, `insider_threat` |
 | 100133 | 13 | Bulk customer data read OUTSIDE office hours by $(db_user) | 100131 | only 10 pm - 6 am | T1213 Data from Information Repositories<br>T1078 Valid Accounts | `insurco_db`, `insurco_bulk_read`, `insider_threat`, `after_hours` |
-| 100134 | 14 | Mass customer data access OUTSIDE office hours by $(db_user): possible insider fraud | 100133, after group `insurco_bulk_read` | 5 in 300 s; same `db_user`; then quiet 300 s | T1213 Data from Information Repositories<br>T1530 Data from Cloud Storage<br>T1078 Valid Accounts | `insurco_db`, `insider_threat`, `after_hours` |
+| 100134 | 14 | Mass customer data access OUTSIDE office hours by $(db_user): possible insider fraud | 100133, 100138, after group `insurco_bulk_read` | 5 in 300 s; same `db_user`; then quiet 300 s | T1213 Data from Information Repositories<br>T1530 Data from Cloud Storage<br>T1078 Valid Accounts | `insurco_db`, `insider_threat`, `after_hours` |
 | 100140 | 0 | Windows security event | decoder `insurco-winsec` | - | - | `insurco_windows` |
 | 100141 | 2 | Windows logon failure for $(TargetUserName) | 100140 | - | - | `insurco_windows`, `authentication_failed` |
 | 100142 | 10 | Windows password guessing from $(IpAddress) | after 100141 | 8 in 120 s; same `IpAddress`; then quiet 60 s | T1110 Brute Force | `insurco_windows`, `brute_force` |
@@ -49,7 +53,7 @@ Adding an entry is a reviewed change, like a rule: the value says why and who ow
 <!-- BEGIN GENERATED: lists (scripts/gen_catalog.py - do not edit by hand) -->
 | List (`etc/lists/insurco/`) | Entries | Used by | Effect |
 |---|---|---|---|
-| `db-service-accounts` | `svc_reporting` - BI and regulatory reporting extracts - owner data team | 100131 | skip on `db_user` |
+| `db-service-accounts` | `svc_reporting` - BI and regulatory reporting extracts - owner data team | 100131, 100137 | skip on `db_user` |
 | `scanner-ips` | `10.20.5.10` - internal vulnerability scanner - owner security team | 100120, 100121, 100122, 100123 | skip on `srcip` |
 <!-- END GENERATED: lists -->
 
@@ -58,7 +62,7 @@ Adding an entry is a reviewed change, like a rule: the value says why and who ow
 <!-- BEGIN GENERATED: mitre (scripts/gen_catalog.py - do not edit by hand) -->
 | Technique | Rules |
 |---|---|
-| T1078 Valid Accounts | 100101, 100102, 100133, 100134 |
+| T1078 Valid Accounts | 100101, 100102, 100138, 100133, 100134 |
 | T1078.003 Valid Accounts: Local Accounts | 100103 |
 | T1083 File and Directory Discovery | 100122 |
 | T1098 Account Manipulation | 100144, 100145 |
@@ -66,7 +70,7 @@ Adding an entry is a reviewed change, like a rule: the value says why and who ow
 | T1110.001 Password Guessing | 100100, 100101 |
 | T1136.001 Create Account: Local Account | 100143, 100145 |
 | T1190 Exploit Public-Facing Application | 100120, 100121, 100122, 100129 |
-| T1213 Data from Information Repositories | 100131, 100132, 100133, 100134 |
+| T1213 Data from Information Repositories | 100131, 100137, 100138, 100132, 100133, 100134 |
 | T1530 Data from Cloud Storage | 100132, 100134 |
 | T1548.003 Sudo and Sudo Caching | 100110 |
 | T1595.003 Wordlist Scanning | 100123 |
@@ -93,6 +97,10 @@ One row per rule (`gen_catalog.py --check` fails if a rule is missing here).
 | 100132 | A BI developer testing an extract by hand | Ask them to use the service account |
 | 100133 | Scheduled exports run under a personal account | Move the job to an allow-listed service account |
 | 100134 | Same as 100133, in a batch | Same |
+| 100135 | Level 0 building block (every pgaudit line): no alert | - |
+| 100136 | Level 0 building block (pgaudit READ): no alert | - |
+| 100137 | Same as 100131, on the real PostgreSQL audit trail; also a JOIN logs one line per table, so one wide query can count twice | Same as 100131; review the query, not just the count |
+| 100138 | Same as 100133, on the real PostgreSQL audit trail | Same as 100133 |
 | 100140 | Level 0 building block: no alert | - |
 | 100141 | Level 2 (no alert since phase 3): users mistyping passwords | Feeds 100142 only |
 | 100142 | A device with a cached old password | Find and fix the device |
@@ -116,6 +124,7 @@ fewer than 20 custom alerts per day of normal activity.
 | 3 | 100102 | Only from outside `10.20.0.0/16` | 298: staff logging in from the office network at night |
 | 3 | 100103 | New: night login to `root` / `admin` / `administrator` | Keeps the high-signal part of the old 100102 |
 | 3 | 100145 | New: account created then added to an admin group within 10 min | Two-step correlation (roadmap) |
+| 4 | 100135-100138 | New: real PostgreSQL audit trail (pgaudit) feeding the same correlations 100132 / 100134 | Real logs (phase 4); the background has no pgaudit traffic, so the 24 h budget is unchanged |
 
 Result after phase 3: **3** custom alerts in 24 h (all 100143, onboarding), from 2101
 before the threshold changes. No frequency threshold had to move: the background
@@ -134,6 +143,15 @@ gives the two JSON log types their own decoders, `insurco-db-audit` and
 - on Windows events, `account` is the account an account-management event is *about*
   (4720: `TargetUserName`, 4732: `MemberName`) - what the two-step correlation 100145
   compares. Real Windows uses different fields per event too (`TargetSid` / `MemberSid`).
+
+`insurco-pgaudit` (same file) decodes the **real** PostgreSQL audit trail of `real-db-01`
+(PostgreSQL 18 `jsonlog`, pgaudit with `log_relation` and `log_rows`) into the *same field
+names* as the simulated trail: `db_user`, `table` (schema stripped), `rows_returned`, `srcip`,
+plus `audit_class`, `command`, `object_type`, `db_name`. It uses regexes, not the JSON plugin,
+because the server log's `user` key would land in a static field. Non-audit server lines
+(startup, errors) are left to the generic `json` decoder; the built-in rule 1002 matches them
+on the word `error` of the `error_severity` key, at level 2 (no alert).
+See [real-services.md](real-services.md) for simulated vs real logs.
 
 The `0005-` prefix is required: Wazuh orders decoder files by file name across all
 folders and the first matching parent wins, so a file sorting after
@@ -171,8 +189,22 @@ Not detected yet - each one is a roadmap item or an accepted trade-off:
   each account with its expected source host (a second list keyed by `srcip`).
 - **Allow-listed scanner compromised.** The scanner IP is silent on web rules
   100120-100123 / 100129 (not on authentication rules).
+- **A second attacker inside a correlation's `ignore` window** (found by the phase 4 e2e
+  run): Wazuh's `ignore` mutes the *whole rule* after it fires, whatever the source address
+  or user. A brute force from another IP within 60 s of a first one raises no 100100 (and so
+  no 100101); likewise 120 s for 100129 and 300 s for 100132 / 100134. The underlying
+  per-event alerts (5760, 100120-100123, 100131 / 100137) still fire. Mitigation to study:
+  shorter `ignore` values, measured against the noise budget.
 - **Two-step correlation across more than 10 minutes** (100145): an attacker who waits
   is only caught by 100143 and 100144 separately.
+
+## Real logs (compose profile `real`)
+
+Since phase 4 the same rules also run on genuine logs: real `sshd` (`real-linux-01`), real
+nginx (`real-web-01`) and a real PostgreSQL + pgaudit (`real-db-01`), with scripted test traffic
+from a lab test client. The SSH and web rules apply unchanged; the database family gets its
+own entry rules (100135-100138) and shares the correlations. Details, differences and limits:
+[real-services.md](real-services.md).
 
 ## One event, one alert
 

@@ -159,11 +159,8 @@
     <group>insurco_db,</group>
   </rule>
 
-  <!-- One bulk read of a sensitive table (100+ rows). Service accounts in the CDB list
-       db-service-accounts (scheduled BI extracts) stay at 100130: no alert, and they never
-       feed 100132/100133. Group insurco_bulk_read is shared with 100133 for 100132. -->
   <rule id="100131" level="7">
-    <if_sid>100130</if_sid>
+    <if_sid>100130,100136</if_sid>
     <field name="table" type="pcre2">^(clients|policies|claims|payments|beneficiaries)$</field>
     <field name="rows_returned" type="pcre2">^[1-9][0-9]{2,}$</field>
     <list field="db_user" lookup="not_match_key">etc/lists/insurco/db-service-accounts</list>
@@ -172,6 +169,59 @@
       <id>T1213</id>
     </mitre>
     <group>insurco_db,insurco_bulk_read,data_access,</group>
+  </rule>
+
+  <!-- ===================================================== -->
+  <!-- REAL audit trail: PostgreSQL + pgaudit (real-db-01)   -->
+  <!-- Decoded by insurco-pgaudit, same field names as above -->
+  <!-- ===================================================== -->
+  <!-- The real database of compose profile `real`. Its entry rules are its own; the
+       correlations are SHARED: 100137 / 100138 are in group insurco_bulk_read, which
+       100132 / 100134 count, so a person's bulk export raises the same alerts on both trails.
+       Why not just <if_sid>100130,100136</if_sid> on 100131: with two parents (or an
+       <if_group>), 100131 no longer fed the group correlation 100132 - even simulated reads
+       stopped correlating (verified with wazuh-logtest 4.14.9; probably because the rule is
+       copied once per parent in the rule tree). So 100137 repeats 100131's conditions, and
+       detection/tests/test_rule_coverage.py fails if the two drift apart. Two parents on the
+       correlation rule itself (100134: 100133, 100138) work, and are tested.
+       ORDER MATTERS: a rule with only <if_matched_group> (100132) is attached to the group's
+       rules defined BEFORE it, so this block must stay above 100132 (verified: below it,
+       100132 never fired on pgaudit reads).
+       WRITE / DDL / ROLE lines stay 100135: 500 rows UPDATEd is not a bulk read. -->
+  <rule id="100135" level="0">
+    <decoded_as>insurco-pgaudit</decoded_as>
+    <description>InsurCo - PostgreSQL audit event (pgaudit)</description>
+    <group>insurco_db,</group>
+  </rule>
+
+  <rule id="100136" level="0">
+    <if_sid>100135</if_sid>
+    <field name="audit_class">^READ$</field>
+    <description>InsurCo - PostgreSQL read (pgaudit)</description>
+    <group>insurco_db,</group>
+  </rule>
+
+  <rule id="100137" level="7">
+    <if_sid>100136</if_sid>
+    <field name="table" type="pcre2">^(clients|policies|claims|payments|beneficiaries)$</field>
+    <field name="rows_returned" type="pcre2">^[1-9][0-9]{2,}$</field>
+    <list field="db_user" lookup="not_match_key">etc/lists/insurco/db-service-accounts</list>
+    <description>InsurCo - Bulk read of sensitive table $(table) by $(db_user) (PostgreSQL audit)</description>
+    <mitre>
+      <id>T1213</id>
+    </mitre>
+    <group>insurco_db,insurco_bulk_read,data_access,</group>
+  </rule>
+
+  <rule id="100138" level="13">
+    <if_sid>100137</if_sid>
+    <time>10 pm - 6 am</time>
+    <description>InsurCo - Bulk customer data read OUTSIDE office hours by $(db_user) (PostgreSQL audit)</description>
+    <mitre>
+      <id>T1213</id>
+      <id>T1078</id>
+    </mitre>
+    <group>insurco_db,insurco_bulk_read,insider_threat,after_hours,</group>
   </rule>
 
   <!-- Same user doing 5 bulk reads in 5 minutes = possible insider exfiltration.
@@ -205,7 +255,7 @@
        if_sid child 100133 before the group-based 100132, so 100132 never fired at night.
        This rule is a child of 100133 and counts the same shared group. -->
   <rule id="100134" level="14" frequency="5" timeframe="300" ignore="300">
-    <if_sid>100133</if_sid>
+    <if_sid>100133,100138</if_sid>
     <if_matched_group>insurco_bulk_read</if_matched_group>
     <same_field>db_user</same_field>
     <description>InsurCo - Mass customer data access OUTSIDE office hours by $(db_user): possible insider fraud</description>
