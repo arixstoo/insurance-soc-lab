@@ -57,6 +57,8 @@ switch ($Verb) {
     'test' {
         Push-Location simulator
         try { Invoke-Native { python -m pytest -q } } finally { Pop-Location }
+        Invoke-Native { python -m pytest -q detection/tests }
+        Invoke-Native { python scripts/gen_catalog.py --check }
         Invoke-Native { python detection/tests/run_tests.py }
     }
     'lint' { Invoke-Native { ruff check simulator detection/tests scripts } }

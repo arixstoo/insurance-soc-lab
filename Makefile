@@ -2,7 +2,7 @@
 PYTHON ?= python3
 COMPOSE := docker compose
 
-.PHONY: help certs rotate up down reset status test unit detection lint
+.PHONY: help certs rotate up down reset status test unit detection catalog noise lint
 
 help:           ## list the targets
 	@grep -E '^[a-z]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  make %-8s %s\n", $$1, $$2}'
@@ -31,11 +31,19 @@ status:         ## containers, agents, passwords, retention, custom rules fired
 
 test: unit detection  ## unit tests + detection tests against the real engine
 
-unit:
+unit:           ## simulator + static detection checks (coverage, catalog), no Docker
 	cd simulator && $(PYTHON) -m pytest -q
+	$(PYTHON) -m pytest -q detection/tests
+	$(PYTHON) scripts/gen_catalog.py --check
 
 detection:
 	$(PYTHON) detection/tests/run_tests.py
+
+catalog:        ## regenerate docs/detection-catalog.md from the rules XML
+	$(PYTHON) scripts/gen_catalog.py
+
+noise:          ## 24 h of background traffic through the real engine -> docs/tuning-report.md
+	$(PYTHON) scripts/noise_report.py
 
 lint:           ## ruff
 	ruff check simulator detection/tests scripts

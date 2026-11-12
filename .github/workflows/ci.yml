@@ -25,10 +25,15 @@ jobs:
         run: shellcheck scripts/*.sh agents/entrypoint.sh
       - name: Unit tests
         run: pytest simulator -q
+      - name: Every rule has a positive and a negative case
+        run: pytest detection/tests -q
+      - name: Detection catalog is up to date with the rules
+        run: python scripts/gen_catalog.py --check
       - name: Rules are well-formed XML
         run: |
           sudo apt-get install -y --no-install-recommends libxml2-utils
           { echo "<root>"; cat detection/rules/insurco_rules.xml; echo "</root>"; } | xmllint --noout -
+          { echo "<root>"; cat detection/decoders/*.xml; echo "</root>"; } | xmllint --noout -
       - name: ISM policy is valid JSON
         run: python -m json.tool stack/config/wazuh_indexer/ism/alerts-retention.json > /dev/null
       - name: Compose file is valid

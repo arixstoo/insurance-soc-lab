@@ -36,8 +36,8 @@ jobs:
 
       - name: Manager clock at midday
         # <time> rules use the manager clock. The detection test runner's helper gives a
-        # POSIX TZ whose local time is 12:00 now, so night-only rules (100102, 100133)
-        # cannot fire and 100131 / 100132 are not replaced by their night variant.
+        # POSIX TZ whose local time is 12:00 now, so night-only rules (100102, 100103, 100133,
+        # 100134) cannot fire and 100131 / 100132 are not replaced by their night variant.
         # Night-only rules are excluded from the check by scripts/e2e.sh.
         run: |
           tz="$(python -c 'import sys; sys.path.insert(0, "detection/tests"); from run_tests import posix_tz_for_hour; print(posix_tz_for_hour(12))')"
