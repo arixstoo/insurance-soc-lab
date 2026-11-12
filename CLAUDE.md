@@ -15,8 +15,9 @@ honesty and documentation matter as much as features.
 2. **Defensive scope.** Detections, telemetry, response, documentation. No
    offensive tooling, exploits or attack scripts aimed at anything outside the
    lab's own containers.
-3. **No rule without tests.** Every rule needs a positive and a negative case in
-   `detection/tests/cases.yaml`, verified with the real engine.
+3. **No rule without tests.** Every rule needs a positive (`expect`) and a negative
+   (`expect_not`) case in `detection/tests/cases.yaml`, verified with the real engine
+   (`test_rule_coverage.py` enforces it), and a row in the catalog's false-positive table.
 4. **Configuration as code.** Never "fix" a running container with
    `docker exec ... sed`. Change a file in the repo, rebuild, verify.
 5. **Never commit** `.env`, `stack/certs/`, keys, or anything under `out/`.
@@ -26,8 +27,10 @@ honesty and documentation matter as much as features.
 | Task | Command |
 |---|---|
 | Lint | `ruff check simulator detection/tests scripts` |
-| Unit tests | `cd simulator && python -m pytest -q` |
+| Unit tests | `cd simulator && python -m pytest -q` + `python -m pytest -q detection/tests` (rule coverage, catalog) |
 | Detection tests | `python detection/tests/run_tests.py` (`-k <regex>` to filter) |
+| Detection catalog | `python scripts/gen_catalog.py` (CI: `--check`) - never edit the generated tables by hand |
+| Noise budget (24 h replay) | `python scripts/noise_report.py` -> `docs/tuning-report.md` (budget < 20 custom alerts) |
 | Certificates (once) | `docker compose -f stack/certs.compose.yml run --rm generator` |
 | Passwords (once, fresh lab) | `make rotate` / `scripts/rotate-passwords.sh` (running lab: `--apply`) |
 | Start lab | `make up` (PowerShell: `scripts/lab.ps1 up`) = `docker compose up -d --build --wait` + `scripts/apply_ism.py` |
@@ -50,9 +53,20 @@ honesty and documentation matter as much as features.
 - `wazuh-logtest` (not the old `ossec-logtest`); each run is one session.
 - One event = one alert: the event that completes a correlation raises the correlation rule
   *instead of* its own. Scenarios must send each kind more than once.
-- At night 100133 (child of 100131) replaces 100131, so 100132 cannot fire.
-- JSON logs are decoded by the generic JSON decoder; our rules key on the
-  `log_type` field (`db_audit`, `winsec`).
+- At night 100133 (child of 100131) replaces 100131, and an `if_sid` child is evaluated
+  before an `if_matched_group` rule: the night correlation needs its own child (100134).
+- JSON logs use our decoders `insurco-db-audit` / `insurco-winsec`
+  (`detection/decoders/0005-insurco_decoders.xml`). Decoder files are ordered by FILE NAME
+  across folders and the first matching parent wins: the `0005-` prefix beats the generic
+  `json` decoder (`0006-json_decoders.xml`). Children of a JSON parent replace its output,
+  so the JSON plugin runs in a sibling child.
+- `<same_field>` compares a field with itself: normalise in the decoder (`account`).
+- CDB lists are compiled next to their text file (`.cdb`): mount `detection/lists` under
+  `/wazuh-config-mount/etc/lists/insurco` (copied at start), never read-only in place.
+- Rules below `log_alert_level` (3) still match and still feed `if_matched_sid` (100141).
+- Correlation windows use a cached `time(NULL)` refreshed every second
+  (`w_get_current_time`); `<time>` uses the wall clock. Time-dependent tests (`at:`) and the
+  noise replay use `detection/replay/` (clockshim) to move both.
 
 ## Environment gotchas (Windows host)
 
@@ -63,8 +77,9 @@ honesty and documentation matter as much as features.
 ## Definition of done (every change)
 
 - Lint, unit tests and detection tests pass locally; CI green after push.
-- Docs updated in the same change: `docs/detection-catalog.md`, `ROADMAP.md`
-  checkboxes, `CHANGELOG.md` (Unreleased).
+- Docs updated in the same change: `docs/detection-catalog.md` (run `gen_catalog.py`, fill
+  the false-positive row), `ROADMAP.md` checkboxes, `CHANGELOG.md` (Unreleased).
+- Rule changes: `scripts/noise_report.py` still under budget; record tuning in the catalog.
 - For lab changes: `docker compose up -d --build` from a clean state
   (`down -v`) reaches 4 active agents and `lab_status.py` prints `OK`.
 - Conventional Commits, small focused commits (`feat(detection): ...`).
@@ -72,5 +87,5 @@ honesty and documentation matter as much as features.
 ## Where things are
 
 `ROADMAP.md` (phases and acceptance criteria) · `docs/architecture.md` ·
-`docs/detection-catalog.md` · `docs/runbooks/` ·
+`docs/detection-catalog.md` (tables generated) · `docs/tuning-report.md` · `docs/runbooks/` ·
 `docs/production-integration.md`.

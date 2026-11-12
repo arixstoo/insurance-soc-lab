@@ -9,7 +9,7 @@ Status: ✅ done · 🔨 in progress · ⬜ planned
 | 0 | Foundations: repo, CI, tested rules | `v0.1.0` | ✅ |
 | 1 | Hardened one-command SIEM | `v0.2.0` | ✅ |
 | 2 | Endpoints and telemetry v3 | `v0.3.0` | ✅ |
-| 3 | Detection engineering v2 | `v0.4.0` | ⬜ |
+| 3 | Detection engineering v2 | `v0.4.0` | 🔨 |
 | 4 | Real services, real attacks in the lab | `v0.5.0` | ⬜ |
 | 5 | SOC dashboards as code + MITRE layer | `v0.6.0` | ⬜ |
 | 6 | Response: runbooks, alerting, active response | `v0.7.0` | ⬜ |
@@ -76,19 +76,28 @@ in under 10 minutes, with no default password left.
 scenario's expected rules in alerts within 10 minutes.
 **Content:** Instagram LE LAB - "a fake insurance company that attacks itself every 3 minutes".
 
-## Phase 3 - Detection engineering v2 ⬜
+## Phase 3 - Detection engineering v2 🔨
 
 **Goal:** go from "rules that fire" to "rules a SOC can trust".
 
-- [ ] Two-step correlation: account created **then** promoted to admin by the same actor
-- [ ] Night-time insider gap (found by the e2e work): between 22:00 and 06:00 every bulk read
-      fires 100133 *instead of* 100131, so the mass-access correlation 100132 never fires at
-      night. Correlate on a group shared by 100131 and 100133 (+ a night test case)
-- [ ] Allow-lists as CDB lists (service accounts, scanner IPs) to cut false positives
-- [ ] Custom decoder for the DB audit format (instead of generic JSON)
-- [ ] Negative tests for every rule (normal activity that must stay quiet)
-- [ ] Rule documentation generated from the XML into `docs/detection-catalog.md`
-- [ ] False-positive review on 24 h of simulated traffic; tune thresholds
+- [x] Two-step correlation: account created **then** added to an admin group, same account,
+      within 10 min (100145, level 15). The account is normalised by the decoder (4720
+      `TargetUserName`, 4732 `MemberName`); the actor may differ. Tested both ways, including
+      9 vs 11 minutes on the replay engine
+- [x] Night-time insider gap (found by the e2e work): 100132 now counts the group
+      `insurco_bulk_read` shared by 100131 and 100133, and a night variant 100134 (child of
+      100133, which Wazuh evaluates first) fires at night; reads across 22:00 add up
+- [x] Allow-lists as CDB lists (`detection/lists/`: `db-service-accounts`, `scanner-ips`), mounted
+      through `/wazuh-config-mount`; ~600 fewer false positives a day
+- [x] Custom decoders for the DB audit and Windows JSON formats (`insurco-db-audit`,
+      `insurco-winsec`), instead of the generic JSON decoder
+- [x] Negative tests for every rule (normal activity that must stay quiet), enforced by a unit test;
+      time-window cases (`at:`) on a replay engine whose clock follows the simulated time
+- [x] Rule documentation generated from the XML into `docs/detection-catalog.md`
+      (`scripts/gen_catalog.py`, CI `--check`)
+- [x] False-positive review on 24 h of simulated traffic replayed through the real engine
+      (`scripts/noise_report.py`, `docs/tuning-report.md`): 2101 -> 3 custom alerts
+- [ ] Release `v0.4.0` (CI green, lab restarted from a clean state)
 
 **Done when:** each rule has at least one positive and one negative test, and
 24 h of background traffic produces fewer than 20 custom alerts.

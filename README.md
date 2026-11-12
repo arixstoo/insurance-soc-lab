@@ -24,13 +24,15 @@ real Wazuh engine in CI.
 | Threat | Rules | MITRE ATT&CK |
 |---|---|---|
 | SSH brute force, then a successful login from the same IP | 100100, 100101 | T1110.001, T1078 |
-| Logins outside office hours | 100102 | T1078 |
+| Logins outside office hours from outside the network, or to privileged accounts | 100102, 100103 | T1078, T1078.003 |
 | sudo to a root shell / change of credential files | 100110 | T1548.003 |
 | SQL injection, XSS, path traversal, secret-file probing, coordinated campaigns | 100120-100129 | T1190, T1083, T1595.003 |
-| **Insider misuse of customer data**: bulk reads of clients/claims/payments, repeated or at night | 100131-100133 | T1213, T1530 |
-| Windows password guessing, new accounts, users added to Administrators | 100141-100144 | T1110, T1136.001, T1098 |
+| **Insider misuse of customer data**: bulk reads of clients/claims/payments, repeated or at night (service accounts allow-listed) | 100131-100134 | T1213, T1530 |
+| Windows password guessing, new accounts, users added to Administrators, **account created then made admin within 10 min** | 100142-100145 | T1110, T1136.001, T1098 |
 
-Full catalog with false positives and coverage gaps: [docs/detection-catalog.md](docs/detection-catalog.md).
+Full catalog with false positives and coverage gaps: [docs/detection-catalog.md](docs/detection-catalog.md)
+(tables generated from the XML). Noise budget: 24 h of normal activity, replayed through the
+real engine, gives 3 custom alerts - [docs/tuning-report.md](docs/tuning-report.md).
 
 ## Architecture
 

@@ -6,8 +6,8 @@
 
 Each sample writes one SSH login line for a unique user name (`latency-<hex>`)
 into srv-linux-01's auth.log, through `insurco-sim marker` inside the simulator
-container. The line raises the built-in alert 5715 (or the custom 100102 at
-night). The script then polls `wazuh-alerts-*` until the alert is found.
+container. The line raises the built-in alert 5715 (internal source: no after-hours
+custom rule, even at night). The script then polls `wazuh-alerts-*` until the alert is found.
 
 Reported per sample:
   manager   line written -> alert produced by analysisd (alert `timestamp`;

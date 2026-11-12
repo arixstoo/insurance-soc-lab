@@ -14,11 +14,11 @@ competitor. The person doing it usually has a legitimate account.
    activity matches its schedule -> **false positive**, propose an allow-list.
 3. How many bulk reads did this user do today? (Dashboard filter:
    `rule.id:100131 and data.db_user:"<user>"`)
-4. Did it happen outside 08:00-18:00 (100133)? Escalate immediately.
+4. Did it happen outside office hours (100133, or 100134 for repeated reads)? Escalate immediately.
 
 ## 2. Investigation (L2)
 
-- Which workstation is `source_ip`? Who was logged on (rules 100141/4624 events)?
+- Which workstation is `source_ip`? Who was logged on (4624 / 4625 events in the archives)?
 - Is the user on leave, resigning, or recently moved to another department?
   (ask HR through the security manager - never contact the user directly)
 - Any other alerts for the same user or IP: failed logins, sudo, new accounts?

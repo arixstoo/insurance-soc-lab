@@ -1,5 +1,47 @@
 # Changelog
 
+## [Unreleased] - Detection engineering v2 (phase 3)
+
+### Added
+- **100145** (level 15): account created (100143) then added to an admin group (100144) for
+  the same account within 10 minutes. The account is normalised by the decoder (`account`:
+  4720 `TargetUserName`, 4732 `MemberName`) because `<same_field>` compares a field with itself.
+- **100134** (level 14): mass customer data access at night (night variant of 100132).
+- **100103** (level 10): SSH login to `root` / `admin` / `administrator` between 22:00 and 06:00.
+- Custom decoders `insurco-db-audit` and `insurco-winsec`
+  (`detection/decoders/0005-insurco_decoders.xml`) replace the generic JSON decoder; the DB
+  client address is also decoded as `srcip`. The `0005-` prefix is what makes them win.
+- CDB allow-lists `detection/lists/db-service-accounts` (`svc_reporting`) and
+  `detection/lists/scanner-ips` (`10.20.5.10`), declared in the manager config and mounted
+  through `/wazuh-config-mount` (the manager compiles lists next to the text file).
+- Every rule has a positive and a negative case (25 -> 60 cases);
+  `detection/tests/test_rule_coverage.py` fails when one is missing.
+- Time-window cases (`at:` offsets) run on `detection/replay/`: the manager image plus
+  `clockshim`, a small `LD_PRELOAD` library that moves analysisd's clock to each line's
+  simulated time (proven exact to the second against the 120 s window of 100100).
+- `scripts/gen_catalog.py`: rule, allow-list and ATT&CK tables of `docs/detection-catalog.md`
+  generated from the XML; `--check` in CI, also fails when a rule has no false-positive row.
+- `scripts/noise_report.py` + `docs/tuning-report.md`: 24 h of background traffic replayed
+  through the real engine in ~3 minutes, alert count per rule, headroom of each frequency rule.
+- Simulator: `insurco_sim.timeline.background_timeline` (traffic without sleeping); the
+  background now includes legitimate activity that looks malicious (reporting extracts,
+  internal scanner, onboarding, non-admin group changes). Unit tests 67 -> 72.
+- `make catalog`, `make noise`; `make unit` / `lab.ps1 test` also run the static detection checks.
+
+### Changed
+- **Detection tests use the lab's own manager configuration**, decoders and lists (they used
+  the image's default `ossec.conf`).
+- 100132 counts the group `insurco_bulk_read` (100131 + 100133) instead of 100131.
+- 100120-100123 skip `scanner-ips`; 100131 skips `db-service-accounts`.
+- Tuning (24 h of background: 2101 -> 3 custom alerts): 100141 level 5 -> 2 (still feeds
+  100142); 100102 only for logins from outside `10.20.0.0/16`.
+- `rogue_admin` expects 100143 + 100145 (the promotion now raises 100145 *instead of*
+  100144); `password_spray` expects 100142 only.
+
+### Fixed
+- Night-time insider gap: 5 bulk reads by one user at night now raise 100134 (100132 could
+  never fire between 22:00 and 06:00).
+
 ## [0.3.0] - 2026-11-12 - Endpoints and telemetry v3, end-to-end test
 
 ### Added
