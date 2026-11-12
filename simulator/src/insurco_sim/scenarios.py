@@ -58,7 +58,9 @@ def _insider(rng: random.Random, now: datetime) -> list[Event]:
 
 def _web_campaign(rng: random.Random, now: datetime) -> list[Event]:
     ip = rng.choice(c.EXTERNAL_IPS)
-    kinds = ["probe", "probe", "sqli", "sqli", "xss", "traversal"]
+    # Every kind twice: the event that completes the correlation (100129) raises 100129
+    # *instead of* its own rule, so a kind sent once could vanish from the alerts.
+    kinds = [kind for kind in c.WEB_ATTACKS for _ in range(2)]
     rng.shuffle(kinds)
     return [("web", e.web_attack(rng, now, kind=k, ip=ip)) for k in kinds]
 

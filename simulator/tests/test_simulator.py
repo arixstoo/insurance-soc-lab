@@ -8,6 +8,7 @@ from pathlib import Path
 import pytest
 import yaml
 
+from insurco_sim import catalog as c
 from insurco_sim import events as e
 from insurco_sim.cli import LogWriter, main
 from insurco_sim.scenarios import SCENARIOS, background_event
@@ -68,6 +69,14 @@ def test_scenarios_are_big_enough_to_trigger_correlation(name):
         assert len(events) >= 5
     if name == "password_spray":
         assert len(events) >= 8
+
+
+@pytest.mark.parametrize("seed", range(20))
+def test_web_campaign_survives_the_correlation_masking_one_event(seed):
+    """The 5th web attack fires 100129 instead of its own rule: each kind must appear twice."""
+    lines = [line for _, line in SCENARIOS["web_campaign"].build(rng(seed), NOW)]
+    for kind, paths in c.WEB_ATTACKS.items():
+        assert sum(any(p in line for p in paths) for line in lines) >= 2, kind
 
 
 def test_background_mix_touches_every_host():
