@@ -21,7 +21,11 @@ import time
 SOCKET = "/var/ossec/queue/sockets/logtest"
 OFFSET_FILE = "/var/ossec/tmp/clockshim.offset"  # analysisd chroots into /var/ossec
 RECORD = 32  # fixed width: one pwrite, never truncated, so a reader never sees half a value
-SETTLE = 0.005  # s: analysisd refreshes its cached clock every ~1 ms under clockshim
+# Seconds to wait after moving the clock: analysisd refreshes its cached clock every ~1 ms
+# under clockshim, but a busy CI runner can delay that thread, and a stale cache makes two
+# events look closer than they are (a 125 s spread counted inside a 120 s window, seen on
+# GitHub Actions). The detection tests (few lines) pass 0.1; the 24 h noise replay keeps 5 ms.
+SETTLE = float(os.environ.get("REPLAY_SETTLE", "0.005"))
 
 
 def set_clock(fd: int, epoch: float) -> None:
