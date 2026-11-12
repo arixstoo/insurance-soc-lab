@@ -8,7 +8,7 @@ Status: ✅ done · 🔨 in progress · ⬜ planned
 |---|---|---|---|
 | 0 | Foundations: repo, CI, tested rules | `v0.1.0` | ✅ |
 | 1 | Hardened one-command SIEM | `v0.2.0` | ✅ |
-| 2 | Endpoints and telemetry v3 | `v0.3.0` | 🔨 |
+| 2 | Endpoints and telemetry v3 | `v0.3.0` | ✅ |
 | 3 | Detection engineering v2 | `v0.4.0` | ⬜ |
 | 4 | Real services, real attacks in the lab | `v0.5.0` | ⬜ |
 | 5 | SOC dashboards as code + MITRE layer | `v0.6.0` | ⬜ |
@@ -54,7 +54,7 @@ Status: ✅ done · 🔨 in progress · ⬜ planned
 in under 10 minutes, with no default password left.
 **Content:** LinkedIn - "A one-command SOC lab for an insurance company, built during my internship".
 
-## Phase 2 - Endpoints and telemetry 🔨
+## Phase 2 - Endpoints and telemetry ✅
 
 **Goal:** realistic, continuous telemetry, one agent per host.
 

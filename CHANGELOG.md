@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased] - Phase 2: telemetry v3 and end-to-end test
+## [0.3.0] - 2026-11-12 - Endpoints and telemetry v3, end-to-end test
 
 ### Added
 - Office-hours activity profile in `insurco-sim run` (`simulator/src/insurco_sim/profile.py`):
