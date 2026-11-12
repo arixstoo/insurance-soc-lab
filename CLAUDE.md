@@ -33,6 +33,8 @@ honesty and documentation matter as much as features.
 | Start lab | `make up` (PowerShell: `scripts/lab.ps1 up`) = `docker compose up -d --build --wait` + `scripts/apply_ism.py` |
 | Lab health | `python scripts/lab_status.py` |
 | Trigger a scenario | `docker compose exec simulator insurco-sim inject <name>` |
+| E2E check (running lab) | `bash scripts/e2e.sh` (CI: `e2e.yml`, manager clock pinned to midday) |
+| Measure | `docker compose exec simulator insurco-sim stats` · `python scripts/measure_latency.py` |
 | Stop / wipe | `docker compose down` / `docker compose down -v` |
 
 ## Wazuh facts learned the hard way
@@ -46,6 +48,9 @@ honesty and documentation matter as much as features.
   The test runner sets the container TZ to make it 02:00 or 12:00.
 - Agent version must be `<=` manager version; both come from `WAZUH_VERSION`.
 - `wazuh-logtest` (not the old `ossec-logtest`); each run is one session.
+- One event = one alert: the event that completes a correlation raises the correlation rule
+  *instead of* its own. Scenarios must send each kind more than once.
+- At night 100133 (child of 100131) replaces 100131, so 100132 cannot fire.
 - JSON logs are decoded by the generic JSON decoder; our rules key on the
   `log_type` field (`db_audit`, `winsec`).
 

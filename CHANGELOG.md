@@ -1,5 +1,35 @@
 # Changelog
 
+## [Unreleased] - Phase 2: telemetry v3 and end-to-end test
+
+### Added
+- Office-hours activity profile in `insurco-sim run` (`simulator/src/insurco_sim/profile.py`):
+  full activity 08:00-18:00 local time with a one-hour ramp on each side, 10% of the peak at
+  night, the whole day x0.2 on Friday and Saturday (weekend in Algeria). `--rate` is now the
+  peak rate. Configurable with `--profile office|flat`, `--office-hours`, `--night-factor`,
+  `--weekend-factor`, `--weekend-days` (compose: `SIM_PROFILE`, `SIM_OFFICE_HOURS`, ...).
+  Implemented by thinning, so sleeps stay short. Attack scenarios ignore the profile.
+- `insurco-sim stats`: events per host per minute and events/second, parsed from the log files.
+- `insurco-sim list --json` and `insurco-sim marker <tag>` (one tagged SSH login line).
+- `scripts/measure_latency.py`: injects marker events and measures log line -> alert
+  (manager) and -> searchable in `wazuh-alerts-*`. Measured on Docker Desktop:
+  median 0.13 s to the alert, 9 s until searchable.
+- `.github/workflows/e2e.yml` + `scripts/e2e.sh`: the full lab on `ubuntu-latest` (certificates,
+  generated passwords, build), 4 active agents, all 6 scenarios injected, the 14 expected rules
+  asserted in the indexer with `curl` against the lab CA; compose logs uploaded on failure.
+  Night-only rules are excluded; the manager clock is pinned to midday.
+- Detection test: brute force then success at night still fires 100101 (25 cases).
+- Unit tests 17 -> 67 (many parametrized): profile curve and runner under a fake clock, stats, CLI helpers.
+
+### Fixed
+- `web_campaign` could miss a rule: the event completing the 100129 correlation raises 100129
+  *instead of* its own rule, and the traversal line was sent only once. Every attack kind is now
+  sent twice (found by the first e2e run: 100122 missing).
+
+### Known issue
+- At night 100133 replaces 100131, so 100132 cannot fire (ROADMAP phase 3).
+
+
 ## [0.2.0] - 2026-11-11 - Hardened one-command SIEM
 
 ### Added

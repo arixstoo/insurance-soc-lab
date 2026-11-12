@@ -61,12 +61,16 @@ in under 10 minutes, with no default password left.
 - [x] Agent image with config rendered from a template (no `docker exec` edits)
 - [x] One log folder per host, mounted read-only (no duplicated events)
 - [x] Simulator v3: weighted daily activity + 6 attack scenarios, seedable
-- [ ] Office-hours profile: more activity 08:00-18:00, quiet nights, weekends
+- [x] Office-hours profile: full activity 08:00-18:00 with 1 h ramps, 10% at night, x0.2 on
+      Fri/Sat (the Algerian weekend); configurable (`SIM_PROFILE`, `SIM_OFFICE_HOURS`, ...),
+      unit tested with a fake clock. Attacks keep their own schedule.
 - [x] Trigger any scenario on demand: `docker compose exec simulator insurco-sim inject <scenario>`
-- [ ] Measure: events/second per host, end-to-end delay (log line -> alert)
-- [ ] **End-to-end test in CI** (`e2e.yml`): start the full lab on a GitHub runner,
-      wait for 4 active agents, inject every scenario, assert each expected rule
-      appears in the indexer, then tear down
+- [x] Measure: `insurco-sim stats` (events per host per minute, ev/s) and
+      `scripts/measure_latency.py` (log line -> alert -> searchable in `wazuh-alerts-*`)
+- [x] **End-to-end test in CI** (`e2e.yml`, `scripts/e2e.sh`): start the full lab on a GitHub
+      runner, wait for 4 active agents, inject every scenario, assert each expected rule
+      appears in the indexer, then tear down (compose logs uploaded on failure).
+      Night-only rules (100102, 100133) are excluded and the manager clock is pinned to midday
 
 **Done when:** `scripts/lab_status.py` shows 4 active agents and every
 scenario's expected rules in alerts within 10 minutes.
@@ -77,6 +81,9 @@ scenario's expected rules in alerts within 10 minutes.
 **Goal:** go from "rules that fire" to "rules a SOC can trust".
 
 - [ ] Two-step correlation: account created **then** promoted to admin by the same actor
+- [ ] Night-time insider gap (found by the e2e work): between 22:00 and 06:00 every bulk read
+      fires 100133 *instead of* 100131, so the mass-access correlation 100132 never fires at
+      night. Correlate on a group shared by 100131 and 100133 (+ a night test case)
 - [ ] Allow-lists as CDB lists (service accounts, scanner IPs) to cut false positives
 - [ ] Custom decoder for the DB audit format (instead of generic JSON)
 - [ ] Negative tests for every rule (normal activity that must stay quiet)

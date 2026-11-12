@@ -1,6 +1,7 @@
 # insurance-soc-lab
 
 [![ci](https://github.com/arixstoo/insurance-soc-lab/actions/workflows/ci.yml/badge.svg)](https://github.com/arixstoo/insurance-soc-lab/actions/workflows/ci.yml)
+[![e2e](https://github.com/arixstoo/insurance-soc-lab/actions/workflows/e2e.yml/badge.svg)](https://github.com/arixstoo/insurance-soc-lab/actions/workflows/e2e.yml)
 ![Wazuh](https://img.shields.io/badge/Wazuh-4.14.9-blue)
 ![MITRE ATT&CK](https://img.shields.io/badge/MITRE%20ATT%26CK-mapped-red)
 ![License](https://img.shields.io/badge/license-MIT-green)
@@ -68,19 +69,28 @@ Skipping the rotate step leaves the public upstream passwords in place; `make st
 it. Rotating a lab that is already running: `make rotate APPLY=1` (see [SECURITY.md](SECURITY.md)).
 
 On a machine that already has the images, the lab is healthy in about a minute and the
-first custom alert arrives within two. A random attack scenario runs every 2-5 minutes.
-To trigger one now:
+first custom alert arrives within two. Background activity follows office hours
+(08:00-18:00 local time, quiet nights, Friday and Saturday at ~20%); a random attack
+scenario runs every 2-5 minutes, day and night. To trigger one now:
 
 ```bash
 docker compose exec simulator insurco-sim list            # 6 scenarios + the rules they target
 docker compose exec simulator insurco-sim inject insider  # mass customer-data access
 ```
 
+Measure the lab:
+
+```bash
+docker compose exec simulator insurco-sim stats   # events per host per minute, ev/s
+python scripts/measure_latency.py                 # log line -> alert -> searchable (seconds)
+bash scripts/e2e.sh                               # inject every scenario, assert its rules in the indexer
+```
+
 ## Test the detections
 
 ```bash
 pip install pyyaml
-python detection/tests/run_tests.py        # 24 cases against wazuh/wazuh-manager:4.14.9
+python detection/tests/run_tests.py        # 25 cases against wazuh/wazuh-manager:4.14.9
 ```
 
 ```text
@@ -89,12 +99,15 @@ python detection/tests/run_tests.py        # 24 cases against wazuh/wazuh-manage
   PASS  repeated bulk reads by one user = insider threat  (fired 100132)
   PASS  bulk read at night  (fired 100133)
   ...
-24/24 passed
+25/25 passed
 ```
 
 Rules with an office-hours condition are tested by starting the manager on a
 clock where it is 02:00 or 12:00 - Wazuh evaluates `<time>` on the manager
 clock, not on the log timestamp.
+
+On top of that, the `e2e` workflow starts the **whole lab** on a GitHub runner, injects
+every scenario and checks that each expected rule reaches the indexer.
 
 ## Repository layout
 
@@ -104,7 +117,7 @@ simulator/   insurco-sim: synthetic telemetry and attack scenarios (Python, test
 agents/      Wazuh agent image, config rendered from a template
 stack/       Wazuh configuration (adapted from wazuh-docker, see NOTICE)
 docs/        architecture, detection catalog, runbooks, production plan
-scripts/     lab.ps1, password rotation, retention policy, lab status
+scripts/     lab.ps1, password rotation, retention policy, lab status, e2e check, latency
 ```
 
 ## About this public version

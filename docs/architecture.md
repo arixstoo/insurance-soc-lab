@@ -40,7 +40,7 @@ flowchart LR
 | `wazuh.manager` | `wazuh/wazuh-manager:4.14.9` | Receives events, decodes, applies built-in + custom rules, writes alerts |
 | `wazuh.indexer` | `wazuh/wazuh-indexer:4.14.9` | Stores alerts (`wazuh-alerts-*`) and archives |
 | `wazuh.dashboard` | `wazuh/wazuh-dashboard:4.14.9` | Web UI on `https://localhost` |
-| `simulator` | built from `simulator/` | Writes realistic background activity plus an attack scenario every 2-5 min |
+| `simulator` | built from `simulator/` | Writes background activity that follows office hours, plus an attack scenario every 2-5 min |
 | `srv-linux-01` | built from `agents/` | Linux server: sshd + sudo (syslog) |
 | `srv-web-01` | built from `agents/` | Business web app: Apache access log |
 | `srv-db-01` | built from `agents/` | Customer database: audit log (JSON) |
@@ -68,8 +68,24 @@ flowchart LR
   waits for all of them.
 - **Bounded storage.** An ISM policy deletes `wazuh-alerts-*` indices 30 days after
   creation (`stack/config/wazuh_indexer/ism/`, applied by `scripts/apply_ism.py`).
+- **Office hours, not a flat rate.** Background events follow a daily curve in the lab
+  time zone (`LAB_TZ`, default Africa/Algiers): full rate 08:00-18:00 with a one-hour ramp
+  on each side, 10% at night, x0.2 on Friday and Saturday. It is a non-homogeneous Poisson
+  flow made by thinning (candidates at the peak rate, each kept with the profile's
+  probability). Attacks ignore it: attackers do not keep office hours.
 - **Simulated Windows events are JSON**, not real EVTX. That keeps the lab
   light and portable; real Windows telemetry (Sysmon) is a roadmap item.
+
+## Measurements
+
+| What | Tool | Value measured (Docker Desktop, Windows 11, 2026-11-12) |
+|---|---|---|
+| Background volume | `insurco-sim stats` | ~0.65 ev/s in office hours (`SIM_RATE=0.7`), spread over the 4 hosts |
+| Log line -> alert (analysisd) | `scripts/measure_latency.py` | median 0.13 s, max 2 s |
+| Log line -> searchable in `wazuh-alerts-*` | `scripts/measure_latency.py` | median 9 s, max 13 s (Filebeat batching + index refresh) |
+| 6 scenarios injected -> 14 expected rules indexed | `scripts/e2e.sh` | 25 s for the whole run |
+
+The e2e workflow prints the same measurements for the GitHub runner.
 
 ## From lab to production
 

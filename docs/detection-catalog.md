@@ -47,4 +47,27 @@ Not detected yet - each one is a roadmap item:
 - Exfiltration over network channels (T1041, T1048) and DNS tunnelling
   (T1071.004) - needs network telemetry (Suricata / Zeek).
 - Account created **and then** promoted to admin by the same actor - a
-  two-step correlation (100143 -> 100144) planned for phase 4.
+  two-step correlation (100143 -> 100144) planned for phase 3.
+- **Night-time mass data access.** Between 22:00 and 06:00 each bulk read fires
+  100133 (level 13) *instead of* 100131, and 100132 correlates on 100131 only, so
+  the "5 bulk reads by one user" alert never fires at night. Each read is still a
+  level-13 alert, but the correlation is lost (found while building the e2e test;
+  fix planned in phase 3).
+
+## One event, one alert
+
+Wazuh gives each event a single rule: the deepest child that matches. So the
+event that completes a correlation raises the correlation rule **instead of** its
+own. In the `web_campaign` scenario the 5th attack raises 100129, not 100120-100123;
+every attack kind is therefore sent twice so each rule still shows up. Keep this in
+mind when counting alerts per rule.
+
+## End-to-end check
+
+`scripts/e2e.sh` (CI: `.github/workflows/e2e.yml`) injects every scenario into a
+running lab and asserts that each rule of its `expected_rules` is indexed in
+`wazuh-alerts-*`. **Night-only rules** - those with a `<time>` element, today 100102
+and 100133 - are excluded: whether they fire depends on the manager clock, not on
+the scenario. The workflow pins the manager clock to about 12:00 so the day rules
+(100131, 100132) are not replaced by their night variant. Night-only rules stay
+covered by the `clock: night` cases in `detection/tests/cases.yaml`.
