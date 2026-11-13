@@ -41,6 +41,11 @@
 ### Fixed
 - Night-time insider gap: 5 bulk reads by one user at night now raise 100134 (100132 could
   never fire between 22:00 and 06:00).
+- e2e lost the DB and Windows scenarios (6/13 rules missing on CI): their log files did not
+  exist yet when the agents' logcollector started, and every agent restarts its daemons
+  when it receives the shared configuration ~30 s after enrolment, while the scenarios were
+  being injected. The simulator now creates every log file at start; `scripts/e2e.sh` waits
+  for each agent's "Buffer agent.conf updated" (`E2E_RELOAD_TIMEOUT`, 90 s) before injecting.
 
 ## [0.3.0] - 2026-11-12 - Endpoints and telemetry v3, end-to-end test
 

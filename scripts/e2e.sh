@@ -14,7 +14,8 @@
 # very large): at night 100133 replaces 100131 and 100132 cannot fire, and a random
 # attack just before the injections can trigger a correlation rule's `ignore` window.
 #
-# Tunables: E2E_AGENT_TIMEOUT (default 300 s), E2E_ALERT_TIMEOUT (default 300 s).
+# Tunables: E2E_AGENT_TIMEOUT (default 300 s), E2E_ALERT_TIMEOUT (default 300 s),
+# E2E_RELOAD_TIMEOUT (default 90 s).
 # shellcheck disable=SC2016  # $vars inside single quotes are jq variables, not shell ones
 set -euo pipefail
 export MSYS_NO_PATHCONV=1   # Git Bash: do not rewrite /var/ossec/... container paths
@@ -67,6 +68,33 @@ while :; do
   sleep 5
 done
 echo "all agents active: ${AGENTS[*]}"
+
+# A freshly enrolled agent receives the manager's shared configuration ~30 s after it
+# connects and restarts its daemons, logcollector included: events written meanwhile can be
+# lost (seen in CI, 6/13 rules missing). Wait until each agent logs the end of that reload,
+# "Buffer agent.conf updated". An agent that already had the shared config never logs it:
+# after E2E_RELOAD_TIMEOUT the check goes on with a warning.
+RELOAD_TIMEOUT="${E2E_RELOAD_TIMEOUT:-90}"
+echo "== waiting for the agents' shared-config reload (up to ${RELOAD_TIMEOUT}s) =="
+deadline=$((SECONDS + RELOAD_TIMEOUT))
+pending=("${AGENTS[@]}")
+while [ "${#pending[@]}" -gt 0 ]; do
+  still=()
+  for name in "${pending[@]}"; do
+    # whole log first: with pipefail, `logs | grep -q` can fail on SIGPIPE when grep stops early
+    log="$(docker compose logs --no-color "$name" 2>/dev/null || true)"
+    grep -q "Buffer agent.conf updated" <<<"$log" || still+=("$name")
+  done
+  pending=("${still[@]}")
+  [ "${#pending[@]}" -eq 0 ] && break
+  if [ "$SECONDS" -ge "$deadline" ]; then
+    echo "warning: no shared-config reload seen for ${pending[*]}, going on" >&2
+    break
+  fi
+  sleep 3
+done
+sleep 5  # let the restarted logcollectors open their files
+echo "agents settled"
 
 # ---------------------------------------------------------------- 2. scenarios
 # Night-only rules: ids of <rule> blocks that contain a <time> element.

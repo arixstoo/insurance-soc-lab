@@ -92,6 +92,14 @@ def test_writer_keeps_one_folder_per_host(tmp_path):
     assert sorted(p.name for p in tmp_path.iterdir()) == ["srv-db-01", "srv-linux-01", "srv-web-01", "ws-claims-01"]
 
 
+def test_writer_creates_every_log_file_up_front(tmp_path):
+    # An agent must find its file when logcollector starts, before the first event
+    LogWriter(tmp_path)
+    for host in c.HOSTS.values():
+        path = tmp_path / host.name / host.log_file
+        assert path.is_file() and path.stat().st_size == 0
+
+
 def test_run_for_a_short_duration(tmp_path):
     assert main(["run", "--out", str(tmp_path), "--duration", "1", "--rate", "20", "--seed", "1"]) == 0
     assert any(p.stat().st_size for p in tmp_path.rglob("*.*"))
