@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased] - Detection engineering v2 (phase 3)
+## [0.4.0] - 2026-11-12 - Detection engineering v2
 
 ### Added
 - **100145** (level 15): account created (100143) then added to an admin group (100144) for
