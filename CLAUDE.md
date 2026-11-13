@@ -30,10 +30,12 @@ honesty and documentation matter as much as features.
 | Unit tests | `cd simulator && python -m pytest -q` + `python -m pytest -q detection/tests` (rule coverage, catalog) |
 | Detection tests | `python detection/tests/run_tests.py` (`-k <regex>` to filter) |
 | Detection catalog | `python scripts/gen_catalog.py` (CI: `--check`) - never edit the generated tables by hand |
+| MITRE layer | `python scripts/gen_mitre_layer.py` (CI: `--check`) -> `docs/mitre-layer.json` |
+| Dashboards | `python scripts/import_dashboards.py` (run by `make up`) · edit panels in `scripts/build_dashboards.py`, then run it (lab up) to rebuild + re-export `dashboards/*.ndjson` · `python scripts/screenshot_dashboards.py` |
 | Noise budget (24 h replay) | `python scripts/noise_report.py` -> `docs/tuning-report.md` (budget < 20 custom alerts) |
 | Certificates (once) | `docker compose -f stack/certs.compose.yml run --rm generator` |
 | Passwords (once, fresh lab) | `make rotate` / `scripts/rotate-passwords.sh` (running lab: `--apply`) |
-| Start lab | `make up` (PowerShell: `scripts/lab.ps1 up`) = `docker compose up -d --build --wait` + `scripts/apply_ism.py` |
+| Start lab | `make up` (PowerShell: `scripts/lab.ps1 up`) = `docker compose up -d --build --wait` + `scripts/apply_ism.py` + `scripts/import_dashboards.py` |
 | Lab health | `python scripts/lab_status.py` |
 | Trigger a scenario | `docker compose exec simulator insurco-sim inject <name>` |
 | E2E check (running lab) | `bash scripts/e2e.sh` (CI: `e2e.yml`, manager clock pinned to midday) |
@@ -78,6 +80,9 @@ honesty and documentation matter as much as features.
 - Correlation windows use a cached `time(NULL)` refreshed every second
   (`w_get_current_time`); `<time>` uses the wall clock. Time-dependent tests (`at:`) and the
   noise replay use `detection/replay/` (clockshim) to move both.
+- Dashboards: a saved `heatmap` vis needs its full `params` (`valueAxes`...): the editor merges
+  no defaults. The `range` agg with custom `label`s returns HTTP 400 (use `filters`). Panels may
+  only filter on `rule.id` / `rule.groups` proven by tests (`test_dashboards.py`).
 
 ## Environment gotchas (Windows host)
 
@@ -102,4 +107,4 @@ honesty and documentation matter as much as features.
 
 `ROADMAP.md` (phases and acceptance criteria) · `docs/architecture.md` ·
 `docs/detection-catalog.md` (tables generated) · `docs/tuning-report.md` · `docs/runbooks/` ·
-`docs/production-integration.md`.
+`docs/production-integration.md` · `docs/dashboards.md` · `docs/mitre-layer.json`.

@@ -3,7 +3,7 @@
   Lab commands for Windows PowerShell - same verbs as the Makefile.
 
 .EXAMPLE
-  .\scripts\lab.ps1 up             # certs + passwords if missing, build, start, wait until healthy, retention
+  .\scripts\lab.ps1 up             # certs + passwords if missing, build, start, wait until healthy, retention, dashboards
   .\scripts\lab.ps1 up -Real       # + the real hosts (compose profile real, docs/real-services.md)
   .\scripts\lab.ps1 traffic        # scripted test traffic from the lab test client to the real hosts
   .\scripts\lab.ps1 status
@@ -12,7 +12,7 @@
 [CmdletBinding()]
 param(
     [Parameter(Position = 0)]
-    [ValidateSet('help', 'certs', 'rotate', 'up', 'down', 'reset', 'status', 'traffic', 'test', 'lint')]
+    [ValidateSet('help', 'certs', 'rotate', 'up', 'down', 'reset', 'status', 'traffic', 'test', 'lint', 'dashboards')]
     [string]$Verb = 'help',
     [switch]$Apply,
     [switch]$Real
@@ -35,13 +35,14 @@ switch ($Verb) {
         @(
             '  certs    generate TLS certificates (once)'
             '  rotate   new passwords for a fresh lab; on a running lab: rotate -Apply'
-            '  up       certs + passwords if missing, build, start, wait until healthy, apply retention (-Real: + real hosts)'
+            '  up       certs + passwords if missing, build, start, wait until healthy, retention, dashboards (-Real: + real hosts)'
             '  down     stop the lab (data is kept)'
             '  reset    stop and DELETE all lab data (volumes)'
             '  status   containers, agents, passwords, retention, custom rules fired'
             '  traffic  real hosts: scripted test traffic from the lab test client'
             '  test     unit tests + detection tests against the real engine'
             '  lint     ruff'
+            '  dashboards  (re)import dashboards/*.ndjson into the running lab'
         ) | ForEach-Object { Write-Host $_ }
     }
     'certs' { Invoke-Native { docker compose -f stack/certs.compose.yml run --rm generator } }
@@ -55,6 +56,7 @@ switch ($Verb) {
         if ($Real) { Invoke-Native { docker compose --profile real up -d --build --wait --wait-timeout 600 } }
         else { Invoke-Native { docker compose up -d --build --wait --wait-timeout 600 } }
         Invoke-Native { python scripts/apply_ism.py }
+        Invoke-Native { python scripts/import_dashboards.py }
     }
     'down' { Invoke-Native { docker compose --profile real down } }
     'reset' { Invoke-Native { docker compose --profile real down -v } }
@@ -65,7 +67,9 @@ switch ($Verb) {
         try { Invoke-Native { python -m pytest -q } } finally { Pop-Location }
         Invoke-Native { python -m pytest -q detection/tests }
         Invoke-Native { python scripts/gen_catalog.py --check }
+        Invoke-Native { python scripts/gen_mitre_layer.py --check }
         Invoke-Native { python detection/tests/run_tests.py }
     }
     'lint' { Invoke-Native { ruff check simulator detection/tests scripts real } }
+    'dashboards' { Invoke-Native { python scripts/import_dashboards.py } }
 }

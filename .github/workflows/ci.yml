@@ -29,6 +29,8 @@ jobs:
         run: pytest detection/tests -q
       - name: Detection catalog is up to date with the rules
         run: python scripts/gen_catalog.py --check
+      - name: MITRE ATT&CK layer is up to date with the rules
+        run: python scripts/gen_mitre_layer.py --check
       - name: Rules are well-formed XML
         run: |
           sudo apt-get install -y --no-install-recommends libxml2-utils

@@ -69,6 +69,9 @@ flowchart LR
   waits for all of them.
 - **Bounded storage.** An ISM policy deletes `wazuh-alerts-*` indices 30 days after
   creation (`stack/config/wazuh_indexer/ism/`, applied by `scripts/apply_ism.py`).
+- **Dashboards as code.** `dashboards/*.ndjson` are saved-object exports built through the
+  API by `scripts/build_dashboards.py`; `make up` imports them (`scripts/import_dashboards.py`,
+  overwrite by fixed id), so a reset never loses them ([dashboards.md](dashboards.md)).
 - **Office hours, not a flat rate.** Background events follow a daily curve in the lab
   time zone (`LAB_TZ`, default Africa/Algiers): full rate 08:00-18:00 with a one-hour ramp
   on each side, 10% at night, x0.2 on Friday and Saturday. It is a non-homogeneous Poisson

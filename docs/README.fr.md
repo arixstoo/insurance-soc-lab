@@ -29,13 +29,16 @@ Toutes les règles sont mappées sur MITRE ATT&CK : voir [detection-catalog.md](
 ```bash
 make certs     # certificats TLS, une fois
 make rotate    # OBLIGATOIRE : remplace les mots de passe publics par défaut de Wazuh
-make up        # construit, démarre, attend que tout soit sain, applique la rétention 30 jours
+make up        # construit, démarre, attend que tout soit sain, rétention 30 jours, importe les dashboards
 make status
 ```
 
 Sous Windows PowerShell : `.\scripts\lab.ps1 certs | rotate | up | status`.
 
-Dashboard : <https://localhost> (utilisateur `admin`, mot de passe `INDEXER_PASSWORD` du `.env`). Déclencher un scénario :
+Dashboard : <https://localhost> (utilisateur `admin`, mot de passe `INDEXER_PASSWORD` du `.env`) ;
+deux tableaux de bord, « InsurCo - SOC Overview » et « InsurCo - Insurer Security », sont importés
+automatiquement ([dashboards.md](dashboards.md)). Couverture ATT&CK : [mitre-layer.json](mitre-layer.json).
+Déclencher un scénario :
 `docker compose exec simulator insurco-sim inject insider`.
 
 ## À propos de cette version publique
