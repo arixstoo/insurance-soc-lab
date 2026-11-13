@@ -2,12 +2,20 @@
 # Each case feeds its log lines, in order, into one wazuh-logtest session
 # and checks the rule fired by the LAST line.
 #
-#   expect:     rule id that must fire on the last line
-#   expect_not: rule id that must NOT fire on the last line
+#   expect:     rule id that must fire on the last line            (a POSITIVE case for it)
+#   expect_not: rule id that must NOT fire on the last line        (a NEGATIVE case for it)
+#               A case may have both: "this fires, and that one does not".
 #   clock:      "night" (02:00) or "day" (12:00) manager clock, for <time> rules
+#   at:         optional, seconds offset of each line. The case then runs on the replay
+#               engine (detection/replay/), whose clock follows these offsets: this is how
+#               time windows (timeframe / frequency) are tested without waiting.
+#
+# Every rule in detection/rules/insurco_rules.xml needs at least one positive and one
+# negative case: detection/tests/test_rule_coverage.py fails otherwise.
 #
 # Placeholders: {ts} = syslog timestamp, {apache_ts} = Apache timestamp.
-# All IPs are documentation ranges (RFC 5737) or lab-private ranges.
+# All IPs are documentation ranges (RFC 5737) or lab-private ranges (10.20.0.0/16).
+# 10.20.5.10 is the allow-listed internal vulnerability scanner (detection/lists/scanner-ips).
 
 cases:
   # ---------- SSH ----------
@@ -15,6 +23,7 @@ cases:
     lines:
       - "{ts} srv-linux-01 sshd[2101]: Failed password for root from 203.0.113.10 port 51001 ssh2"
     expect: "5760"
+    expect_not: "100100"
 
   - name: ssh brute force - 6 failures from one IP
     lines:
@@ -34,6 +43,28 @@ cases:
       - "{ts} srv-linux-01 sshd[2204]: Failed password for root from 203.0.113.24 port 51004 ssh2"
       - "{ts} srv-linux-01 sshd[2205]: Failed password for root from 203.0.113.25 port 51005 ssh2"
       - "{ts} srv-linux-01 sshd[2206]: Failed password for root from 203.0.113.26 port 51006 ssh2"
+    expect_not: "100100"
+
+  - name: 6 failures from one IP in 115 s is a brute force (window 120 s)
+    at: [0, 23, 46, 69, 92, 115]
+    lines:
+      - "{ts} srv-linux-01 sshd[2211]: Failed password for root from 203.0.113.27 port 51001 ssh2"
+      - "{ts} srv-linux-01 sshd[2212]: Failed password for root from 203.0.113.27 port 51002 ssh2"
+      - "{ts} srv-linux-01 sshd[2213]: Failed password for root from 203.0.113.27 port 51003 ssh2"
+      - "{ts} srv-linux-01 sshd[2214]: Failed password for root from 203.0.113.27 port 51004 ssh2"
+      - "{ts} srv-linux-01 sshd[2215]: Failed password for root from 203.0.113.27 port 51005 ssh2"
+      - "{ts} srv-linux-01 sshd[2216]: Failed password for root from 203.0.113.27 port 51006 ssh2"
+    expect: "100100"
+
+  - name: 6 failures from one IP spread over 125 s are not a brute force
+    at: [0, 25, 50, 75, 100, 125]
+    lines:
+      - "{ts} srv-linux-01 sshd[2221]: Failed password for root from 203.0.113.28 port 51001 ssh2"
+      - "{ts} srv-linux-01 sshd[2222]: Failed password for root from 203.0.113.28 port 51002 ssh2"
+      - "{ts} srv-linux-01 sshd[2223]: Failed password for root from 203.0.113.28 port 51003 ssh2"
+      - "{ts} srv-linux-01 sshd[2224]: Failed password for root from 203.0.113.28 port 51004 ssh2"
+      - "{ts} srv-linux-01 sshd[2225]: Failed password for root from 203.0.113.28 port 51005 ssh2"
+      - "{ts} srv-linux-01 sshd[2226]: Failed password for root from 203.0.113.28 port 51006 ssh2"
     expect_not: "100100"
 
   - name: success right after brute force = account compromise
@@ -60,17 +91,48 @@ cases:
       - "{ts} srv-linux-01 sshd[2317]: Accepted password for root from 203.0.113.31 port 51007 ssh2"
     expect: "100101"
 
+  - name: success from another IP after a brute force is not a compromise of that session
+    lines:
+      - "{ts} srv-linux-01 sshd[2321]: Failed password for root from 203.0.113.32 port 51001 ssh2"
+      - "{ts} srv-linux-01 sshd[2322]: Failed password for root from 203.0.113.32 port 51002 ssh2"
+      - "{ts} srv-linux-01 sshd[2323]: Failed password for root from 203.0.113.32 port 51003 ssh2"
+      - "{ts} srv-linux-01 sshd[2324]: Failed password for root from 203.0.113.32 port 51004 ssh2"
+      - "{ts} srv-linux-01 sshd[2325]: Failed password for root from 203.0.113.32 port 51005 ssh2"
+      - "{ts} srv-linux-01 sshd[2326]: Failed password for root from 203.0.113.32 port 51006 ssh2"
+      - "{ts} srv-linux-01 sshd[2327]: Accepted password for k.meziane from 10.20.10.40 port 51007 ssh2"
+    expect_not: "100101"
+
   - name: normal daytime login is not flagged
     clock: day
     lines:
       - "{ts} srv-linux-01 sshd[2401]: Accepted password for f.khelil from 10.20.10.15 port 50122 ssh2"
     expect: "5715"
+    expect_not: "100102"
 
-  - name: login at night is flagged
+  - name: login at night from outside the internal network is flagged
     clock: night
     lines:
-      - "{ts} srv-linux-01 sshd[2501]: Accepted password for f.khelil from 10.20.10.15 port 50122 ssh2"
+      - "{ts} srv-linux-01 sshd[2501]: Accepted password for f.khelil from 198.51.100.25 port 50122 ssh2"
     expect: "100102"
+
+  - name: staff login at night from the office network does not alert (tuned)
+    clock: night
+    lines:
+      - "{ts} srv-linux-01 sshd[2502]: Accepted password for f.khelil from 10.20.10.15 port 50122 ssh2"
+    expect: "5715"
+    expect_not: "100102"
+
+  - name: root login at night from the office network is flagged
+    clock: night
+    lines:
+      - "{ts} srv-linux-01 sshd[2503]: Accepted password for root from 10.20.10.15 port 50122 ssh2"
+    expect: "100103"
+
+  - name: root login during office hours is not an after-hours alert
+    clock: day
+    lines:
+      - "{ts} srv-linux-01 sshd[2504]: Accepted password for root from 10.20.10.15 port 50122 ssh2"
+    expect_not: "100103"
 
   # ---------- sudo ----------
   - name: routine sudo is not flagged
@@ -99,20 +161,55 @@ cases:
       - '203.0.113.40 - - [{apache_ts}] "GET /claims/search?q=%27%20UNION%20SELECT%20username,password%20FROM%20users-- HTTP/1.1" 403 512 "-" "Mozilla/5.0"'
     expect: "100120"
 
+  - name: sql injection from the allow-listed scanner stays a built-in alert
+    lines:
+      - '10.20.5.10 - - [{apache_ts}] "GET /claims/search?q=%27%20UNION%20SELECT%20username,password%20FROM%20users-- HTTP/1.1" 403 512 "-" "Mozilla/5.0"'
+    expect_not: "100120"
+
   - name: cross-site scripting
     lines:
       - '203.0.113.41 - - [{apache_ts}] "GET /search?q=<script>alert(1)</script> HTTP/1.1" 403 512 "-" "Mozilla/5.0"'
     expect: "100121"
+
+  - name: ordinary search is not cross-site scripting
+    lines:
+      - '10.20.10.22 - - [{apache_ts}] "GET /search?q=policy%2012345 HTTP/1.1" 200 2048 "-" "Mozilla/5.0"'
+    expect_not: "100121"
+
+  - name: cross-site scripting from the allow-listed scanner stays a built-in alert
+    lines:
+      - '10.20.5.10 - - [{apache_ts}] "GET /search?q=<script>alert(1)</script> HTTP/1.1" 403 512 "-" "Mozilla/5.0"'
+    expect_not: "100121"
 
   - name: path traversal
     lines:
       - '203.0.113.42 - - [{apache_ts}] "GET /documents/download?file=../../../../etc/passwd HTTP/1.1" 403 512 "-" "Mozilla/5.0"'
     expect: "100122"
 
+  - name: normal document download is not path traversal
+    lines:
+      - '10.20.10.23 - - [{apache_ts}] "GET /documents/download?file=claim-48213.pdf HTTP/1.1" 200 81920 "-" "Mozilla/5.0"'
+    expect_not: "100122"
+
+  - name: path traversal from the allow-listed scanner stays a built-in alert
+    lines:
+      - '10.20.5.10 - - [{apache_ts}] "GET /documents/download?file=../../../../etc/passwd HTTP/1.1" 403 512 "-" "Mozilla/5.0"'
+    expect_not: "100122"
+
   - name: probe for .env
     lines:
       - '203.0.113.43 - - [{apache_ts}] "GET /.env HTTP/1.1" 404 196 "-" "Mozilla/5.0"'
     expect: "100123"
+
+  - name: ordinary 404 is not a secrets probe
+    lines:
+      - '10.20.10.24 - - [{apache_ts}] "GET /policies/99999 HTTP/1.1" 404 196 "-" "Mozilla/5.0"'
+    expect_not: "100123"
+
+  - name: secrets probe from the allow-listed scanner stays a built-in alert
+    lines:
+      - '10.20.5.10 - - [{apache_ts}] "GET /.env HTTP/1.1" 404 196 "-" "Mozilla/5.0"'
+    expect_not: "100123"
 
   - name: coordinated web attack from one IP
     lines:
@@ -123,18 +220,57 @@ cases:
       - '203.0.113.44 - - [{apache_ts}] "GET /backup.sql HTTP/1.1" 404 196 "-" "Mozilla/5.0"'
     expect: "100129"
 
-  # ---------- database audit ----------
+  - name: five web attacks from five IPs are not one campaign
+    lines:
+      - '203.0.113.45 - - [{apache_ts}] "GET /claims/search?q=%27%20UNION%20SELECT%201,2-- HTTP/1.1" 403 512 "-" "Mozilla/5.0"'
+      - '203.0.113.46 - - [{apache_ts}] "GET /search?q=<script>alert(1)</script> HTTP/1.1" 403 512 "-" "Mozilla/5.0"'
+      - '203.0.113.47 - - [{apache_ts}] "GET /documents/download?file=../../etc/passwd HTTP/1.1" 403 512 "-" "Mozilla/5.0"'
+      - '203.0.113.48 - - [{apache_ts}] "GET /.env HTTP/1.1" 404 196 "-" "Mozilla/5.0"'
+      - '203.0.113.49 - - [{apache_ts}] "GET /backup.sql HTTP/1.1" 404 196 "-" "Mozilla/5.0"'
+    expect_not: "100129"
+
+  - name: a scan by the allow-listed scanner is not a campaign
+    lines:
+      - '10.20.5.10 - - [{apache_ts}] "GET /claims/search?q=%27%20UNION%20SELECT%201,2-- HTTP/1.1" 403 512 "-" "Mozilla/5.0"'
+      - '10.20.5.10 - - [{apache_ts}] "GET /search?q=<script>alert(1)</script> HTTP/1.1" 403 512 "-" "Mozilla/5.0"'
+      - '10.20.5.10 - - [{apache_ts}] "GET /documents/download?file=../../etc/passwd HTTP/1.1" 403 512 "-" "Mozilla/5.0"'
+      - '10.20.5.10 - - [{apache_ts}] "GET /.env HTTP/1.1" 404 196 "-" "Mozilla/5.0"'
+      - '10.20.5.10 - - [{apache_ts}] "GET /backup.sql HTTP/1.1" 404 196 "-" "Mozilla/5.0"'
+      - '10.20.5.10 - - [{apache_ts}] "GET /.git/config HTTP/1.1" 404 196 "-" "Mozilla/5.0"'
+    expect_not: "100129"
+
+  # ---------- database audit (decoder insurco-db-audit) ----------
   - name: normal single-record read
     clock: day
     lines:
       - '{"log_type":"db_audit","db_user":"s.boukhalfa","table":"clients","query":"SELECT id, name FROM clients WHERE id = 4821","rows_returned":1,"source_ip":"10.20.10.31"}'
     expect: "100130"
+    expect_not: "100131"
+
+  - name: db audit decoder does not depend on field order or spacing
+    clock: day
+    lines:
+      - '{"source_ip": "10.20.10.31", "rows_returned": 500, "table": "clients", "db_user": "s.boukhalfa", "log_type": "db_audit", "query": "SELECT * FROM clients LIMIT 500"}'
+    expect: "100131"
+
+  - name: a winsec event is not a database audit event
+    lines:
+      - '{"log_type":"winsec","EventID":4624,"TargetUserName":"a.benali","LogonType":3,"IpAddress":"10.20.10.65","WorkstationName":"WS-CLAIMS-01"}'
+    expect_not: "100130"
 
   - name: one bulk read of a sensitive table
     clock: day
     lines:
       - '{"log_type":"db_audit","db_user":"s.boukhalfa","table":"clients","query":"SELECT * FROM clients LIMIT 500","rows_returned":500,"source_ip":"10.20.10.31"}'
     expect: "100131"
+    expect_not: "100133"
+
+  - name: bulk read by an allow-listed service account stays quiet
+    clock: day
+    lines:
+      - '{"log_type":"db_audit","db_user":"svc_reporting","table":"claims","query":"SELECT * FROM claims LIMIT 900","rows_returned":900,"source_ip":"10.20.20.5"}'
+    expect: "100130"
+    expect_not: "100131"
 
   - name: repeated bulk reads by one user = insider threat
     clock: day
@@ -145,6 +281,72 @@ cases:
       - '{"log_type":"db_audit","db_user":"y.amrani","table":"policies","query":"SELECT * FROM policies LIMIT 450","rows_returned":450,"source_ip":"10.20.10.32"}'
       - '{"log_type":"db_audit","db_user":"y.amrani","table":"clients","query":"SELECT * FROM clients LIMIT 500 OFFSET 500","rows_returned":500,"source_ip":"10.20.10.32"}'
     expect: "100132"
+    expect_not: "100134"
+
+  - name: repeated bulk reads at night = insider threat (night gap fixed)
+    clock: night
+    lines:
+      - '{"log_type":"db_audit","db_user":"y.amrani","table":"clients","query":"SELECT * FROM clients LIMIT 500","rows_returned":500,"source_ip":"10.20.10.32"}'
+      - '{"log_type":"db_audit","db_user":"y.amrani","table":"claims","query":"SELECT * FROM claims LIMIT 400","rows_returned":400,"source_ip":"10.20.10.32"}'
+      - '{"log_type":"db_audit","db_user":"y.amrani","table":"payments","query":"SELECT * FROM payments LIMIT 300","rows_returned":300,"source_ip":"10.20.10.32"}'
+      - '{"log_type":"db_audit","db_user":"y.amrani","table":"policies","query":"SELECT * FROM policies LIMIT 450","rows_returned":450,"source_ip":"10.20.10.32"}'
+      - '{"log_type":"db_audit","db_user":"y.amrani","table":"clients","query":"SELECT * FROM clients LIMIT 500 OFFSET 500","rows_returned":500,"source_ip":"10.20.10.32"}'
+    expect: "100134"
+    expect_not: "100133"
+
+  - name: bulk reads on both sides of 22:00 add up to one insider alert
+    # day clock = simulated 12:00; +35880 s = 21:58:00, the last two reads are after 22:00
+    at: [35880, 35910, 35940, 36030, 36060]
+    lines:
+      - '{"log_type":"db_audit","db_user":"r.saidani","table":"clients","query":"SELECT * FROM clients LIMIT 500","rows_returned":500,"source_ip":"10.20.10.39"}'
+      - '{"log_type":"db_audit","db_user":"r.saidani","table":"claims","query":"SELECT * FROM claims LIMIT 400","rows_returned":400,"source_ip":"10.20.10.39"}'
+      - '{"log_type":"db_audit","db_user":"r.saidani","table":"payments","query":"SELECT * FROM payments LIMIT 300","rows_returned":300,"source_ip":"10.20.10.39"}'
+      - '{"log_type":"db_audit","db_user":"r.saidani","table":"policies","query":"SELECT * FROM policies LIMIT 450","rows_returned":450,"source_ip":"10.20.10.39"}'
+      - '{"log_type":"db_audit","db_user":"r.saidani","table":"beneficiaries","query":"SELECT * FROM beneficiaries LIMIT 300","rows_returned":300,"source_ip":"10.20.10.39"}'
+    expect: "100134"
+
+  - name: five bulk reads by one user spread over 6 minutes are not mass access
+    at: [0, 90, 180, 270, 360]
+    lines:
+      - '{"log_type":"db_audit","db_user":"h.ouali","table":"clients","query":"SELECT * FROM clients LIMIT 500","rows_returned":500,"source_ip":"10.20.10.41"}'
+      - '{"log_type":"db_audit","db_user":"h.ouali","table":"claims","query":"SELECT * FROM claims LIMIT 400","rows_returned":400,"source_ip":"10.20.10.41"}'
+      - '{"log_type":"db_audit","db_user":"h.ouali","table":"payments","query":"SELECT * FROM payments LIMIT 300","rows_returned":300,"source_ip":"10.20.10.41"}'
+      - '{"log_type":"db_audit","db_user":"h.ouali","table":"policies","query":"SELECT * FROM policies LIMIT 450","rows_returned":450,"source_ip":"10.20.10.41"}'
+      - '{"log_type":"db_audit","db_user":"h.ouali","table":"beneficiaries","query":"SELECT * FROM beneficiaries LIMIT 300","rows_returned":300,"source_ip":"10.20.10.41"}'
+    expect: "100131"
+    expect_not: "100132"
+
+  - name: night bulk reads by five different users are not one insider
+    clock: night
+    lines:
+      - '{"log_type":"db_audit","db_user":"a.benali","table":"clients","query":"SELECT * FROM clients LIMIT 500","rows_returned":500,"source_ip":"10.20.10.34"}'
+      - '{"log_type":"db_audit","db_user":"f.khelil","table":"claims","query":"SELECT * FROM claims LIMIT 400","rows_returned":400,"source_ip":"10.20.10.35"}'
+      - '{"log_type":"db_audit","db_user":"k.meziane","table":"payments","query":"SELECT * FROM payments LIMIT 300","rows_returned":300,"source_ip":"10.20.10.36"}'
+      - '{"log_type":"db_audit","db_user":"m.hadj","table":"policies","query":"SELECT * FROM policies LIMIT 450","rows_returned":450,"source_ip":"10.20.10.37"}'
+      - '{"log_type":"db_audit","db_user":"n.bensalem","table":"clients","query":"SELECT * FROM clients LIMIT 500 OFFSET 500","rows_returned":500,"source_ip":"10.20.10.38"}'
+    expect: "100133"
+    expect_not: "100134"
+
+  - name: bulk reads by five different users are not one insider
+    clock: day
+    lines:
+      - '{"log_type":"db_audit","db_user":"a.benali","table":"clients","query":"SELECT * FROM clients LIMIT 500","rows_returned":500,"source_ip":"10.20.10.34"}'
+      - '{"log_type":"db_audit","db_user":"f.khelil","table":"claims","query":"SELECT * FROM claims LIMIT 400","rows_returned":400,"source_ip":"10.20.10.35"}'
+      - '{"log_type":"db_audit","db_user":"k.meziane","table":"payments","query":"SELECT * FROM payments LIMIT 300","rows_returned":300,"source_ip":"10.20.10.36"}'
+      - '{"log_type":"db_audit","db_user":"m.hadj","table":"policies","query":"SELECT * FROM policies LIMIT 450","rows_returned":450,"source_ip":"10.20.10.37"}'
+      - '{"log_type":"db_audit","db_user":"n.bensalem","table":"clients","query":"SELECT * FROM clients LIMIT 500 OFFSET 500","rows_returned":500,"source_ip":"10.20.10.38"}'
+    expect_not: "100132"
+
+  - name: repeated bulk reads by an allow-listed service account stay quiet
+    clock: day
+    lines:
+      - '{"log_type":"db_audit","db_user":"svc_reporting","table":"clients","query":"SELECT * FROM clients LIMIT 900","rows_returned":900,"source_ip":"10.20.20.5"}'
+      - '{"log_type":"db_audit","db_user":"svc_reporting","table":"claims","query":"SELECT * FROM claims LIMIT 900","rows_returned":900,"source_ip":"10.20.20.5"}'
+      - '{"log_type":"db_audit","db_user":"svc_reporting","table":"payments","query":"SELECT * FROM payments LIMIT 900","rows_returned":900,"source_ip":"10.20.20.5"}'
+      - '{"log_type":"db_audit","db_user":"svc_reporting","table":"policies","query":"SELECT * FROM policies LIMIT 900","rows_returned":900,"source_ip":"10.20.20.5"}'
+      - '{"log_type":"db_audit","db_user":"svc_reporting","table":"beneficiaries","query":"SELECT * FROM beneficiaries LIMIT 900","rows_returned":900,"source_ip":"10.20.20.5"}'
+    expect: "100130"
+    expect_not: "100132"
 
   - name: bulk read at night
     clock: night
@@ -152,26 +354,91 @@ cases:
       - '{"log_type":"db_audit","db_user":"l.brahimi","table":"claims","query":"SELECT * FROM claims LIMIT 800","rows_returned":800,"source_ip":"10.20.10.33"}'
     expect: "100133"
 
-  # ---------- windows-style events ----------
+  - name: scheduled night extract by an allow-listed service account stays quiet
+    clock: night
+    lines:
+      - '{"log_type":"db_audit","db_user":"svc_reporting","table":"claims","query":"SELECT * FROM claims LIMIT 900","rows_returned":900,"source_ip":"10.20.20.5"}'
+    expect: "100130"
+    expect_not: "100133"
+
+  # ---------- windows-style events (decoder insurco-winsec) ----------
+  - name: successful windows logon is only a base event
+    lines:
+      - '{"log_type":"winsec","EventID":4624,"TargetUserName":"a.benali","LogonType":3,"IpAddress":"10.20.10.65","WorkstationName":"WS-CLAIMS-01"}'
+    expect: "100140"
+    expect_not: "100141"
+
+  - name: a database audit event is not a windows event
+    lines:
+      - '{"log_type":"db_audit","db_user":"s.boukhalfa","table":"clients","query":"SELECT id FROM clients WHERE id = 1","rows_returned":1,"source_ip":"10.20.10.31"}'
+    expect_not: "100140"
+
   - name: account created
     lines:
       - '{"log_type":"winsec","EventID":4720,"SubjectUserName":"it.admin","TargetUserName":"temp_audit","WorkstationName":"SRV-AD-01"}'
     expect: "100143"
 
+  - name: account deleted is not an account creation
+    lines:
+      - '{"log_type":"winsec","EventID":4726,"SubjectUserName":"it.admin","TargetUserName":"temp_audit","WorkstationName":"SRV-AD-01"}'
+    expect_not: "100143"
+
   - name: member added to Administrators
     lines:
       - '{"log_type":"winsec","EventID":4732,"SubjectUserName":"it.admin","MemberName":"temp_audit","GroupName":"Administrators","WorkstationName":"SRV-AD-01"}'
     expect: "100144"
+    expect_not: "100145"
 
   - name: member added to a non-admin group is not critical
     lines:
       - '{"log_type":"winsec","EventID":4732,"SubjectUserName":"it.admin","MemberName":"n.bensalem","GroupName":"Claims-Readers","WorkstationName":"SRV-AD-01"}'
     expect_not: "100144"
 
+  - name: account created then added to Administrators = rogue admin
+    lines:
+      - '{"log_type":"winsec","EventID":4720,"SubjectUserName":"it.admin","TargetUserName":"tmp_731","WorkstationName":"SRV-AD-01"}'
+      - '{"log_type":"winsec","EventID":4732,"SubjectUserName":"it.admin","MemberName":"tmp_731","GroupName":"Administrators","WorkstationName":"SRV-AD-01"}'
+    expect: "100145"
+
+  - name: rogue admin is caught even when a second admin does the promotion
+    lines:
+      - '{"log_type":"winsec","EventID":4720,"SubjectUserName":"it.admin","TargetUserName":"tmp_732","WorkstationName":"SRV-AD-01"}'
+      - '{"EventID": 4732, "GroupName": "Domain Admins", "MemberName": "tmp_732", "SubjectUserName": "h.ouali", "log_type": "winsec"}'
+    expect: "100145"
+
+  - name: a DIFFERENT account added to Administrators after a creation is not the correlation
+    lines:
+      - '{"log_type":"winsec","EventID":4720,"SubjectUserName":"it.admin","TargetUserName":"tmp_733","WorkstationName":"SRV-AD-01"}'
+      - '{"log_type":"winsec","EventID":4732,"SubjectUserName":"it.admin","MemberName":"k.meziane","GroupName":"Administrators","WorkstationName":"SRV-AD-01"}'
+    expect: "100144"
+    expect_not: "100145"
+
+  - name: new account added to a non-admin group (onboarding) is not the correlation
+    lines:
+      - '{"log_type":"winsec","EventID":4720,"SubjectUserName":"it.admin","TargetUserName":"n.cherif","WorkstationName":"SRV-AD-01"}'
+      - '{"log_type":"winsec","EventID":4732,"SubjectUserName":"it.admin","MemberName":"n.cherif","GroupName":"Claims-Readers","WorkstationName":"SRV-AD-01"}'
+    expect_not: "100145"
+
+  - name: promotion 9 minutes after the creation is a rogue admin
+    at: [0, 540]
+    lines:
+      - '{"log_type":"winsec","EventID":4720,"SubjectUserName":"it.admin","TargetUserName":"tmp_734","WorkstationName":"SRV-AD-01"}'
+      - '{"log_type":"winsec","EventID":4732,"SubjectUserName":"it.admin","MemberName":"tmp_734","GroupName":"Administrators","WorkstationName":"SRV-AD-01"}'
+    expect: "100145"
+
+  - name: promotion 11 minutes after the creation is outside the window
+    at: [0, 660]
+    lines:
+      - '{"log_type":"winsec","EventID":4720,"SubjectUserName":"it.admin","TargetUserName":"tmp_735","WorkstationName":"SRV-AD-01"}'
+      - '{"log_type":"winsec","EventID":4732,"SubjectUserName":"it.admin","MemberName":"tmp_735","GroupName":"Administrators","WorkstationName":"SRV-AD-01"}'
+    expect: "100144"
+    expect_not: "100145"
+
   - name: single windows logon failure
     lines:
       - '{"log_type":"winsec","EventID":4625,"TargetUserName":"a.benali","IpAddress":"10.20.10.65","WorkstationName":"WS-CLAIMS-01"}'
     expect: "100141"
+    expect_not: "100142"
 
   - name: windows password guessing
     lines:
@@ -184,3 +451,15 @@ cases:
       - '{"log_type":"winsec","EventID":4625,"TargetUserName":"k.meziane","IpAddress":"10.20.10.66","WorkstationName":"WS-CLAIMS-02"}'
       - '{"log_type":"winsec","EventID":4625,"TargetUserName":"k.meziane","IpAddress":"10.20.10.66","WorkstationName":"WS-CLAIMS-02"}'
     expect: "100142"
+
+  - name: eight windows failures from eight IPs are not password guessing
+    lines:
+      - '{"log_type":"winsec","EventID":4625,"TargetUserName":"a.benali","IpAddress":"10.20.10.70","WorkstationName":"WS-CLAIMS-02"}'
+      - '{"log_type":"winsec","EventID":4625,"TargetUserName":"a.benali","IpAddress":"10.20.10.71","WorkstationName":"WS-CLAIMS-02"}'
+      - '{"log_type":"winsec","EventID":4625,"TargetUserName":"admin","IpAddress":"10.20.10.72","WorkstationName":"WS-CLAIMS-02"}'
+      - '{"log_type":"winsec","EventID":4625,"TargetUserName":"admin","IpAddress":"10.20.10.73","WorkstationName":"WS-CLAIMS-02"}'
+      - '{"log_type":"winsec","EventID":4625,"TargetUserName":"f.khelil","IpAddress":"10.20.10.74","WorkstationName":"WS-CLAIMS-02"}'
+      - '{"log_type":"winsec","EventID":4625,"TargetUserName":"f.khelil","IpAddress":"10.20.10.75","WorkstationName":"WS-CLAIMS-02"}'
+      - '{"log_type":"winsec","EventID":4625,"TargetUserName":"k.meziane","IpAddress":"10.20.10.76","WorkstationName":"WS-CLAIMS-02"}'
+      - '{"log_type":"winsec","EventID":4625,"TargetUserName":"k.meziane","IpAddress":"10.20.10.77","WorkstationName":"WS-CLAIMS-02"}'
+    expect_not: "100142"

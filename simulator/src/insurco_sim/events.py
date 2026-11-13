@@ -63,7 +63,8 @@ def web_attack(rng: random.Random, now: datetime, *, kind: str | None = None, ip
 
 # --- Database audit (JSON lines) ------------------------------------------------
 
-def db_query(rng: random.Random, now: datetime, *, bulk: bool = False, user: str | None = None) -> str:
+def db_query(rng: random.Random, now: datetime, *, bulk: bool = False, user: str | None = None,
+             ip: str | None = None) -> str:
     user = user or rng.choice(c.EMPLOYEES)
     if bulk:
         table = rng.choice(c.SENSITIVE_TABLES)
@@ -77,7 +78,7 @@ def db_query(rng: random.Random, now: datetime, *, bulk: bool = False, user: str
         "log_type": "db_audit", "timestamp": now.isoformat(timespec="seconds"),
         "db_user": user, "table": table, "query": query, "rows_returned": rows,
         "duration_ms": rng.randint(2, 40) if not bulk else rng.randint(300, 2500),
-        "source_ip": rng.choice(c.INTERNAL_IPS),
+        "source_ip": ip or rng.choice(c.INTERNAL_IPS),
     })
 
 
@@ -92,6 +93,6 @@ def win_event(rng: random.Random, now: datetime, event_id: int, **fields: str) -
         4624: {"TargetUserName": rng.choice(c.EMPLOYEES), "LogonType": 3, "IpAddress": rng.choice(c.INTERNAL_IPS)},
         4625: {"TargetUserName": rng.choice(c.EMPLOYEES), "IpAddress": rng.choice(c.INTERNAL_IPS)},
         4720: {"SubjectUserName": "it.admin", "TargetUserName": f"tmp_{rng.randint(100, 999)}"},
-        4732: {"SubjectUserName": "it.admin", "MemberName": rng.choice(c.EMPLOYEES), "GroupName": "Claims-Readers"},
+        4732: {"SubjectUserName": "it.admin", "MemberName": rng.choice(c.EMPLOYEES), "GroupName": rng.choice(c.GROUPS)},
     }
     return json.dumps({**base, **defaults.get(event_id, {}), **fields})

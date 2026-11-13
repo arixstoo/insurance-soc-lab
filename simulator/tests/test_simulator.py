@@ -92,6 +92,14 @@ def test_writer_keeps_one_folder_per_host(tmp_path):
     assert sorted(p.name for p in tmp_path.iterdir()) == ["srv-db-01", "srv-linux-01", "srv-web-01", "ws-claims-01"]
 
 
+def test_writer_creates_every_log_file_up_front(tmp_path):
+    # An agent must find its file when logcollector starts, before the first event
+    LogWriter(tmp_path)
+    for host in c.HOSTS.values():
+        path = tmp_path / host.name / host.log_file
+        assert path.is_file() and path.stat().st_size == 0
+
+
 def test_run_for_a_short_duration(tmp_path):
     assert main(["run", "--out", str(tmp_path), "--duration", "1", "--rate", "20", "--seed", "1"]) == 0
     assert any(p.stat().st_size for p in tmp_path.rglob("*.*"))
@@ -114,3 +122,54 @@ def test_scenario_rules_exist_and_are_tested():
         for rule_id in scenario.expected_rules:
             assert rule_id in defined, f"{scenario.name}: rule {rule_id} is not defined"
             assert rule_id in tested, f"{scenario.name}: rule {rule_id} has no test case"
+
+
+# --- phase 3: legitimate-but-suspicious background, timeline ----------------------------
+
+def test_background_includes_allow_listed_activity():
+    """The noise report is only meaningful if the background exercises the allow-lists."""
+    generator = rng(3)
+    lines = [background_event(generator, NOW)[1] for _ in range(5000)]
+    reporting = [json.loads(x) for x in lines if '"db_user": "svc_reporting"' in x]
+    assert reporting and all(r["rows_returned"] >= 100 and r["source_ip"] == c.REPORTING_HOST_IP
+                             for r in reporting)
+    assert any(x.startswith(c.SCANNER_IP + " ") for x in lines)
+
+
+def test_allow_listed_values_match_the_cdb_lists():
+    lists = REPO / "detection" / "lists"
+    keys = {path.name: {line.split(":", 1)[0] for line in path.read_text().splitlines() if line}
+            for path in lists.iterdir()}
+    assert c.REPORTING_ACCOUNT in keys["db-service-accounts"]
+    assert c.SCANNER_IP in keys["scanner-ips"]
+    assert c.SCANNER_IP not in c.INTERNAL_IPS and c.REPORTING_HOST_IP not in c.INTERNAL_IPS
+
+
+def test_background_never_promotes_to_an_admin_group():
+    generator = rng(4)
+    for _ in range(5000):
+        role, line = background_event(generator, NOW)
+        if '"EventID": 4732' in line:
+            assert json.loads(line)["GroupName"] in c.GROUPS
+
+
+def test_timeline_is_ordered_seeded_and_follows_the_profile():
+    from insurco_sim.timeline import background_timeline
+
+    start = datetime(2026, 11, 16)  # a Monday (working day in Algeria)
+    events = list(background_timeline(start, 24, seed=5, rate=0.7))
+    assert events == list(background_timeline(start, 24, seed=5, rate=0.7))
+    stamps = [t for t, _, _ in events]
+    assert stamps == sorted(stamps) and start <= stamps[0] and stamps[-1] < start.replace(day=17)
+    per_hour = [sum(1 for t in stamps if t.hour == h) for h in range(24)]
+    # peak ~2520/h (0.7 ev/s) from 08:00 to 18:00, ~10% at night
+    assert 2200 < per_hour[12] < 2850
+    assert per_hour[3] < per_hour[12] * 0.15
+    assert {role for _, role, _ in events} == set(c.HOSTS)
+
+
+def test_timeline_rejects_a_bad_rate():
+    from insurco_sim.timeline import background_timeline
+
+    with pytest.raises(ValueError):
+        next(background_timeline(NOW, 1, rate=0))

@@ -1,0 +1,65 @@
+<!--
+  insurance-soc-lab - custom decoders for "InsurCo" JSON logs.
+  Mounted at /var/ossec/etc/decoders/0005-insurco_decoders.xml (docker-compose.yml and
+  detection/tests/run_tests.py).
+
+  Why the "0005-" prefix: Wazuh orders decoder files by FILE NAME across all decoder
+  folders, and the first parent decoder whose prematch matches wins. The generic
+  "json" decoder lives in ruleset/decoders/0006-json_decoders.xml and matches any line
+  starting with '{'; a file named insurco_decoders.xml would load after it and never be
+  used (verified with wazuh-logtest 4.14.9). Same trick as upstream "json-msgraph".
+
+  Pattern: a parent that only recognises the log type, then sibling children (same
+  name, all evaluated): one runs the JSON plugin (every key becomes a field, by name),
+  the others extract or normalise specific fields with order-independent regexes.
+-->
+
+<!-- ===================================================== -->
+<!-- Database audit trail: {"log_type": "db_audit", ...}    -->
+<!-- ===================================================== -->
+
+<decoder name="insurco-db-audit">
+  <prematch type="pcre2">^\{.*"log_type":\s*"db_audit"</prematch>
+</decoder>
+
+<decoder name="insurco-db-audit-fields">
+  <parent>insurco-db-audit</parent>
+  <plugin_decoder>JSON_Decoder</plugin_decoder>
+</decoder>
+
+<!-- Client address as the standard srcip field: same_source_ip, $(srcip), GeoIP and
+     address CDB lists work on it like on any other Wazuh log. -->
+<decoder name="insurco-db-audit-fields">
+  <parent>insurco-db-audit</parent>
+  <regex type="pcre2">"source_ip":\s*"([0-9a-fA-F.:]+)"</regex>
+  <order>srcip</order>
+</decoder>
+
+<!-- ===================================================== -->
+<!-- Windows-style security events: {"log_type": "winsec"}  -->
+<!-- ===================================================== -->
+
+<decoder name="insurco-winsec">
+  <prematch type="pcre2">^\{.*"log_type":\s*"winsec"</prematch>
+</decoder>
+
+<decoder name="insurco-winsec-fields">
+  <parent>insurco-winsec</parent>
+  <plugin_decoder>JSON_Decoder</plugin_decoder>
+</decoder>
+
+<!-- "account" = the account an account-management event is ABOUT. Windows puts it in a
+     different field per event (4720: TargetUserName = new account; 4732: MemberName =
+     member added, while TargetUserName is the group). <same_field> only compares a field
+     with itself, so the two-step correlation 100145 needs one normalised field. -->
+<decoder name="insurco-winsec-fields">
+  <parent>insurco-winsec</parent>
+  <regex type="pcre2">^(?=.*"EventID":\s*4720\b).*"TargetUserName":\s*"([^"]+)"</regex>
+  <order>account</order>
+</decoder>
+
+<decoder name="insurco-winsec-fields">
+  <parent>insurco-winsec</parent>
+  <regex type="pcre2">^(?=.*"EventID":\s*4732\b).*"MemberName":\s*"([^"]+)"</regex>
+  <order>account</order>
+</decoder>
