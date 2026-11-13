@@ -4,7 +4,7 @@ COMPOSE := docker compose $(if $(REAL),--profile real)
 # down / reset also stop the real hosts (compose profile `real`) when they run
 COMPOSE_ALL := docker compose --profile real
 
-.PHONY: help certs rotate up down reset status traffic test unit detection catalog noise lint
+.PHONY: help certs rotate up down reset status traffic test unit detection catalog mitre noise lint
 
 help:           ## list the targets
 	@grep -E '^[a-z]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  make %-8s %s\n", $$1, $$2}'
@@ -40,12 +40,16 @@ unit:           ## simulator + static detection checks (coverage, catalog), no D
 	cd simulator && $(PYTHON) -m pytest -q
 	$(PYTHON) -m pytest -q detection/tests
 	$(PYTHON) scripts/gen_catalog.py --check
+	$(PYTHON) scripts/gen_mitre_layer.py --check
 
 detection:
 	$(PYTHON) detection/tests/run_tests.py
 
 catalog:        ## regenerate docs/detection-catalog.md from the rules XML
 	$(PYTHON) scripts/gen_catalog.py
+
+mitre:          ## regenerate docs/mitre-layer.json (ATT&CK Navigator) from the rules XML
+	$(PYTHON) scripts/gen_mitre_layer.py
 
 noise:          ## 24 h of background traffic through the real engine -> docs/tuning-report.md
 	$(PYTHON) scripts/noise_report.py

@@ -1,0 +1,286 @@
+{
+  "name": "InsurCo SOC lab - detection coverage",
+  "versions": {
+    "layer": "4.5",
+    "navigator": "5.1.0"
+  },
+  "domain": "enterprise-attack",
+  "description": "12 techniques covered by 20 custom Wazuh rules (insurance-soc-lab). Score = number of rules mapped to the technique; every rule has a positive and a negative test against the real engine. Generated from detection/rules/insurco_rules.xml by scripts/gen_mitre_layer.py - do not edit by hand.",
+  "sorting": 3,
+  "layout": {
+    "layout": "side",
+    "aggregateFunction": "max",
+    "showID": true,
+    "showName": true,
+    "showAggregateScores": false,
+    "countUnscored": false,
+    "expandedSubtechniques": "annotated"
+  },
+  "hideDisabled": false,
+  "techniques": [
+    {
+      "techniqueID": "T1078",
+      "score": 5,
+      "enabled": true,
+      "comment": "Rules: 100101 (level 14), 100102 (level 8), 100138 (level 13), 100133 (level 13), 100134 (level 14)",
+      "metadata": [
+        {
+          "name": "100101",
+          "value": "level 14 - CRITICAL: successful SSH login from $(srcip) right after a brute force"
+        },
+        {
+          "name": "100102",
+          "value": "level 8 - SSH login outside office hours by $(dstuser) from outside the internal network ($(srcip))"
+        },
+        {
+          "name": "100138",
+          "value": "level 13 - Bulk customer data read OUTSIDE office hours by $(db_user) (PostgreSQL audit)"
+        },
+        {
+          "name": "100133",
+          "value": "level 13 - Bulk customer data read OUTSIDE office hours by $(db_user)"
+        },
+        {
+          "name": "100134",
+          "value": "level 14 - Mass customer data access OUTSIDE office hours by $(db_user): possible insider fraud"
+        }
+      ],
+      "showSubtechniques": true
+    },
+    {
+      "techniqueID": "T1078.003",
+      "score": 1,
+      "enabled": true,
+      "comment": "Rules: 100103 (level 10)",
+      "metadata": [
+        {
+          "name": "100103",
+          "value": "level 10 - SSH login to privileged account $(dstuser) outside office hours from $(srcip)"
+        }
+      ],
+      "showSubtechniques": false
+    },
+    {
+      "techniqueID": "T1083",
+      "score": 1,
+      "enabled": true,
+      "comment": "Rules: 100122 (level 10)",
+      "metadata": [
+        {
+          "name": "100122",
+          "value": "level 10 - Path traversal attempt from $(srcip)"
+        }
+      ],
+      "showSubtechniques": false
+    },
+    {
+      "techniqueID": "T1098",
+      "score": 2,
+      "enabled": true,
+      "comment": "Rules: 100144 (level 13), 100145 (level 15)",
+      "metadata": [
+        {
+          "name": "100144",
+          "value": "level 13 - CRITICAL: $(MemberName) added to $(GroupName)"
+        },
+        {
+          "name": "100145",
+          "value": "level 15 - CRITICAL: account $(account) created and added to $(GroupName) within 10 minutes"
+        }
+      ],
+      "showSubtechniques": false
+    },
+    {
+      "techniqueID": "T1110",
+      "score": 1,
+      "enabled": true,
+      "comment": "Rules: 100142 (level 10)",
+      "metadata": [
+        {
+          "name": "100142",
+          "value": "level 10 - Windows password guessing from $(IpAddress)"
+        }
+      ],
+      "showSubtechniques": true
+    },
+    {
+      "techniqueID": "T1110.001",
+      "score": 2,
+      "enabled": true,
+      "comment": "Rules: 100100 (level 10), 100101 (level 14)",
+      "metadata": [
+        {
+          "name": "100100",
+          "value": "level 10 - SSH brute force: 6 failed logins from $(srcip) in 2 minutes"
+        },
+        {
+          "name": "100101",
+          "value": "level 14 - CRITICAL: successful SSH login from $(srcip) right after a brute force"
+        }
+      ],
+      "showSubtechniques": false
+    },
+    {
+      "techniqueID": "T1136",
+      "enabled": true,
+      "showSubtechniques": true
+    },
+    {
+      "techniqueID": "T1136.001",
+      "score": 2,
+      "enabled": true,
+      "comment": "Rules: 100143 (level 8), 100145 (level 15)",
+      "metadata": [
+        {
+          "name": "100143",
+          "value": "level 8 - New user account $(TargetUserName) created by $(SubjectUserName)"
+        },
+        {
+          "name": "100145",
+          "value": "level 15 - CRITICAL: account $(account) created and added to $(GroupName) within 10 minutes"
+        }
+      ],
+      "showSubtechniques": false
+    },
+    {
+      "techniqueID": "T1190",
+      "score": 4,
+      "enabled": true,
+      "comment": "Rules: 100120 (level 11), 100121 (level 10), 100122 (level 10), 100129 (level 13)",
+      "metadata": [
+        {
+          "name": "100120",
+          "value": "level 11 - SQL injection attempt on a business web app from $(srcip)"
+        },
+        {
+          "name": "100121",
+          "value": "level 10 - Cross-site scripting attempt on a business web app from $(srcip)"
+        },
+        {
+          "name": "100122",
+          "value": "level 10 - Path traversal attempt from $(srcip)"
+        },
+        {
+          "name": "100129",
+          "value": "level 13 - Coordinated web attack campaign from $(srcip)"
+        }
+      ],
+      "showSubtechniques": false
+    },
+    {
+      "techniqueID": "T1213",
+      "score": 6,
+      "enabled": true,
+      "comment": "Rules: 100131 (level 7), 100137 (level 7), 100138 (level 13), 100132 (level 12), 100133 (level 13), 100134 (level 14)",
+      "metadata": [
+        {
+          "name": "100131",
+          "value": "level 7 - Bulk read of sensitive table $(table) by $(db_user)"
+        },
+        {
+          "name": "100137",
+          "value": "level 7 - Bulk read of sensitive table $(table) by $(db_user) (PostgreSQL audit)"
+        },
+        {
+          "name": "100138",
+          "value": "level 13 - Bulk customer data read OUTSIDE office hours by $(db_user) (PostgreSQL audit)"
+        },
+        {
+          "name": "100132",
+          "value": "level 12 - Mass customer data access by $(db_user): possible insider fraud"
+        },
+        {
+          "name": "100133",
+          "value": "level 13 - Bulk customer data read OUTSIDE office hours by $(db_user)"
+        },
+        {
+          "name": "100134",
+          "value": "level 14 - Mass customer data access OUTSIDE office hours by $(db_user): possible insider fraud"
+        }
+      ],
+      "showSubtechniques": false
+    },
+    {
+      "techniqueID": "T1530",
+      "score": 2,
+      "enabled": true,
+      "comment": "Rules: 100132 (level 12), 100134 (level 14)",
+      "metadata": [
+        {
+          "name": "100132",
+          "value": "level 12 - Mass customer data access by $(db_user): possible insider fraud"
+        },
+        {
+          "name": "100134",
+          "value": "level 14 - Mass customer data access OUTSIDE office hours by $(db_user): possible insider fraud"
+        }
+      ],
+      "showSubtechniques": false
+    },
+    {
+      "techniqueID": "T1548",
+      "enabled": true,
+      "showSubtechniques": true
+    },
+    {
+      "techniqueID": "T1548.003",
+      "score": 1,
+      "enabled": true,
+      "comment": "Rules: 100110 (level 12)",
+      "metadata": [
+        {
+          "name": "100110",
+          "value": "level 12 - Suspicious sudo command (root shell or credential file change) by $(srcuser)"
+        }
+      ],
+      "showSubtechniques": false
+    },
+    {
+      "techniqueID": "T1595",
+      "enabled": true,
+      "showSubtechniques": true
+    },
+    {
+      "techniqueID": "T1595.003",
+      "score": 1,
+      "enabled": true,
+      "comment": "Rules: 100123 (level 8)",
+      "metadata": [
+        {
+          "name": "100123",
+          "value": "level 8 - Probe for secrets or backup files from $(srcip)"
+        }
+      ],
+      "showSubtechniques": false
+    }
+  ],
+  "gradient": {
+    "colors": [
+      "#fde4c3",
+      "#f4a259",
+      "#bc4b51"
+    ],
+    "minValue": 1,
+    "maxValue": 6
+  },
+  "legendItems": [
+    {
+      "label": "1 rule",
+      "color": "#fde4c3"
+    },
+    {
+      "label": "6 rules",
+      "color": "#bc4b51"
+    }
+  ],
+  "metadata": [
+    {
+      "name": "techniques",
+      "value": "T1078 Valid Accounts, T1078.003 Valid Accounts: Local Accounts, T1083 File and Directory Discovery, T1098 Account Manipulation, T1110 Brute Force, T1110.001 Password Guessing, T1136.001 Create Account: Local Account, T1190 Exploit Public-Facing Application, T1213 Data from Information Repositories, T1530 Data from Cloud Storage, T1548.003 Sudo and Sudo Caching, T1595.003 Wordlist Scanning"
+    }
+  ],
+  "showTacticRowBackground": false,
+  "selectTechniquesAcrossTactics": true,
+  "selectSubtechniquesWithParent": false,
+  "selectVisibleTechniques": false
+}
