@@ -186,8 +186,9 @@ def run_case(container: str, case: Case, timed_clock: TimedClock | None = None) 
         for offset, line in zip(case.at, case.lines, strict=True):
             when = start + dt.timedelta(seconds=offset)
             records.append(f"{when.timestamp():.3f}\t{render(line, when.replace(tzinfo=None))}")
-        out = docker("exec", "-i", "-e", "LD_PRELOAD=", container, PYTHON, "/replay/driver.py",
-                     stdin="\n".join(records) + "\n", check=False)
+        # REPLAY_SETTLE: wait 0.1 s after each clock move (driver.py), robust on slow runners
+        out = docker("exec", "-i", "-e", "LD_PRELOAD=", "-e", "REPLAY_SETTLE=0.1", container,
+                     PYTHON, "/replay/driver.py", stdin="\n".join(records) + "\n", check=False)
         results = [json.loads(row) for row in out.splitlines() if row.startswith("{")]
         if len(results) != len(case.lines) or "error" in results[-1]:
             return False, f"replay failed: {out.strip()[-300:]}"
