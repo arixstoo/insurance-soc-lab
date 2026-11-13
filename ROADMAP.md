@@ -9,7 +9,7 @@ Status: ✅ done · 🔨 in progress · ⬜ planned
 | 0 | Foundations: repo, CI, tested rules | `v0.1.0` | ✅ |
 | 1 | Hardened one-command SIEM | `v0.2.0` | ✅ |
 | 2 | Endpoints and telemetry v3 | `v0.3.0` | ✅ |
-| 3 | Detection engineering v2 | `v0.4.0` | 🔨 |
+| 3 | Detection engineering v2 | `v0.4.0` | ✅ |
 | 4 | Real services, real attacks in the lab | `v0.5.0` | 🔨 |
 | 5 | SOC dashboards as code + MITRE layer | `v0.6.0` | ⬜ |
 | 6 | Response: runbooks, alerting, active response | `v0.7.0` | ⬜ |
@@ -76,7 +76,7 @@ in under 10 minutes, with no default password left.
 scenario's expected rules in alerts within 10 minutes.
 **Content:** Instagram LE LAB - "a fake insurance company that attacks itself every 3 minutes".
 
-## Phase 3 - Detection engineering v2 🔨
+## Phase 3 - Detection engineering v2 ✅
 
 **Goal:** go from "rules that fire" to "rules a SOC can trust".
 
@@ -97,7 +97,7 @@ scenario's expected rules in alerts within 10 minutes.
       (`scripts/gen_catalog.py`, CI `--check`)
 - [x] False-positive review on 24 h of simulated traffic replayed through the real engine
       (`scripts/noise_report.py`, `docs/tuning-report.md`): 2101 -> 3 custom alerts
-- [ ] Release `v0.4.0` (CI green, lab restarted from a clean state)
+- [x] Release `v0.4.0` (CI green, lab restarted from a clean state)
 
 **Done when:** each rule has at least one positive and one negative test, and
 24 h of background traffic produces fewer than 20 custom alerts.

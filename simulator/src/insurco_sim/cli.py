@@ -35,7 +35,12 @@ DEFAULT_OUT = Path("/var/log/insurco")
 
 
 class LogWriter:
-    """Appends lines to <out>/<host>/<file>, one folder per simulated host."""
+    """Appends lines to <out>/<host>/<file>, one folder per simulated host.
+
+    Every log file is created up front: an agent whose file is missing when its logcollector
+    starts only finds it on a later rescan and skips what was written before (seen in e2e:
+    the first DB / Windows events after the agents' start-up reload were never read).
+    """
 
     def __init__(self, out_dir: Path) -> None:
         self.paths = {}
@@ -43,6 +48,7 @@ class LogWriter:
             folder = out_dir / host.name
             folder.mkdir(parents=True, exist_ok=True)
             self.paths[role] = folder / host.log_file
+            self.paths[role].touch(exist_ok=True)
 
     def write(self, role: str, line: str) -> None:
         with self.paths[role].open("a", encoding="utf-8") as handle:

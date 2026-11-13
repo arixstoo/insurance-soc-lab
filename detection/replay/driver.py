@@ -26,6 +26,12 @@ RECORD = 32  # fixed width: one pwrite, never truncated, so a reader never sees 
 # events look closer than they are (a 125 s spread counted inside a 120 s window, seen on
 # GitHub Actions). The detection tests (few lines) pass 0.1; the 24 h noise replay keeps 5 ms.
 SETTLE = float(os.environ.get("REPLAY_SETTLE", "0.005"))
+# The thread that refreshes that cache (w_log_rotate_thread, wazuh v4.14.9 analysisd.c) also
+# dumps the hourly stats and opens / rotates the log files when the hour or the day changes,
+# under the writers' mutex: after a move across an hour boundary (every timed case starts a
+# simulated day later) the cache can lag by far more than SETTLE. Wait longer there.
+BOUNDARY_SETTLE = float(os.environ.get("REPLAY_BOUNDARY_SETTLE", "1.0"))
+_last_hour: int | None = None
 
 
 def set_clock(fd: int, epoch: float) -> None:
@@ -33,8 +39,11 @@ def set_clock(fd: int, epoch: float) -> None:
 
     A relative offset keeps the clock ticking, so no thread waits on a frozen time.
     """
+    global _last_hour
     os.pwrite(fd, f"{epoch - time.time():+.6f}".ljust(RECORD - 1).encode() + b"\n", 0)
-    time.sleep(SETTLE)
+    hour = int(epoch // 3600)  # UTC hours: the lab time zones are whole-hour offsets
+    time.sleep(BOUNDARY_SETTLE if hour != _last_hour else SETTLE)
+    _last_hour = hour
 
 
 def request(payload: dict) -> dict:

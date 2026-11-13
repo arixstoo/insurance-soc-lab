@@ -47,7 +47,7 @@
   lab evaluates `<time>` rules in UTC (one hour off). Tests and e2e use POSIX TZ strings and
   are not affected. Candidate fix: a POSIX default (`CET-1`).
 
-## [Unreleased] - Detection engineering v2 (phase 3)
+## [0.4.0] - 2026-11-12 - Detection engineering v2
 
 ### Added
 - **100145** (level 15): account created (100143) then added to an admin group (100144) for
@@ -88,6 +88,17 @@
 ### Fixed
 - Night-time insider gap: 5 bulk reads by one user at night now raise 100134 (100132 could
   never fire between 22:00 and 06:00).
+- e2e lost the DB and Windows scenarios (6/13 rules missing on CI): their log files did not
+  exist yet when the agents' logcollector started, and every agent restarts its daemons
+  when it receives the shared configuration ~30 s after enrolment, while the scenarios were
+  being injected. The simulator now creates every log file at start; `scripts/e2e.sh` waits
+  for each agent's "Buffer agent.conf updated" (`E2E_RELOAD_TIMEOUT`, 90 s) before injecting.
+- Timed detection cases flipped on a busy CI runner (five bulk reads over 6 minutes counted
+  inside the 5-minute window of 100132): the replay engine waited only 5 ms for analysisd's
+  cached clock. The thread that refreshes it also rotates the logs when the hour or day
+  changes, and every timed case starts a simulated day later: the replay now waits 1 s after
+  a move across an hour boundary (`REPLAY_BOUNDARY_SETTLE`), and the detection tests 0.1 s
+  after any other move (`REPLAY_SETTLE`; the 24 h noise replay keeps 5 ms).
 
 ## [0.3.0] - 2026-11-12 - Endpoints and telemetry v3, end-to-end test
 
