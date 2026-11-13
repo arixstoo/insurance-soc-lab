@@ -30,9 +30,25 @@ real Wazuh engine in CI.
 | **Insider misuse of customer data**: bulk reads of clients/claims/payments, repeated or at night (service accounts allow-listed) | 100131-100134 | T1213, T1530 |
 | Windows password guessing, new accounts, users added to Administrators, **account created then made admin within 10 min** | 100142-100145 | T1110, T1136.001, T1098 |
 
+ATT&CK coverage as a Navigator layer, generated from the rules (colour = number of rules per
+technique): [docs/mitre-layer.json](docs/mitre-layer.json) - [open it in the ATT&CK Navigator](https://mitre-attack.github.io/attack-navigator/#layerURL=https%3A%2F%2Fraw.githubusercontent.com%2Farixstoo%2Finsurance-soc-lab%2Fmain%2Fdocs%2Fmitre-layer.json).
+
 Full catalog with false positives and coverage gaps: [docs/detection-catalog.md](docs/detection-catalog.md)
 (tables generated from the XML). Noise budget: 24 h of normal activity, replayed through the
 real engine, gives 3 custom alerts - [docs/tuning-report.md](docs/tuning-report.md).
+
+## Dashboards
+
+Two dashboards ship as code (`dashboards/*.ndjson`, built through the saved-objects API) and
+are imported by `make up`: after a reset they show data with no manual click.
+
+| InsurCo - SOC Overview | InsurCo - Insurer Security |
+|---|---|
+| [![SOC Overview](docs/img/soc-overview.png)](docs/img/soc-overview.png) | [![Insurer Security](docs/img/insurer-security.png)](docs/img/insurer-security.png) |
+| volume, critical count, timeline by level, top rules, top source IPs, alerts per agent | insider data access, brute force -> compromise, web campaigns, privilege changes, heatmap by hour |
+
+Every `rule.id` / `rule.groups` a panel filters on is checked against the detection tests.
+How they are built, imported and checked: [docs/dashboards.md](docs/dashboards.md).
 
 ## Architecture
 
@@ -55,7 +71,7 @@ On Linux hosts run `sudo sysctl -w vm.max_map_count=262144` once (OpenSearch).
 git clone https://github.com/arixstoo/insurance-soc-lab.git && cd insurance-soc-lab
 make certs                 # TLS certificates, once
 make rotate                # REQUIRED: replaces the public Wazuh default passwords (writes .env)
-make up                    # build, start, wait until healthy, apply 30-day alert retention
+make up                    # build, start, wait until healthy, 30-day retention, import dashboards
 make status                # agents active, defaults rejected, custom rules fired -> OK
 ```
 
@@ -64,9 +80,11 @@ On Windows PowerShell, the same verbs: `.\scripts\lab.ps1 certs`, `.\scripts\lab
 first two steps by themselves if `stack/certs/` or `.env` is missing.)
 
 Without `make`: `docker compose -f stack/certs.compose.yml run --rm generator`,
-`scripts/rotate-passwords.sh`, `docker compose up -d --build --wait`, `python scripts/apply_ism.py`.
+`scripts/rotate-passwords.sh`, `docker compose up -d --build --wait`, `python scripts/apply_ism.py`,
+`python scripts/import_dashboards.py`.
 
-Dashboard: <https://localhost>, user `admin`, password = `INDEXER_PASSWORD` in your `.env`.
+Dashboard: <https://localhost>, user `admin`, password = `INDEXER_PASSWORD` in your `.env`;
+menu -> Dashboards -> "InsurCo - SOC Overview" / "InsurCo - Insurer Security".
 Skipping the rotate step leaves the public upstream passwords in place; `make status` reports
 it. Rotating a lab that is already running: `make rotate APPLY=1` (see [SECURITY.md](SECURITY.md)).
 
@@ -129,10 +147,11 @@ real traffic.
 ```text
 detection/   rules (XML) + test cases + wazuh-logtest runner
 simulator/   insurco-sim: synthetic telemetry and attack scenarios (Python, tested)
+dashboards/  SOC dashboards as saved-object exports (.ndjson), imported by make up
 agents/      Wazuh agent image, config rendered from a template
 stack/       Wazuh configuration (adapted from wazuh-docker, see NOTICE)
-docs/        architecture, detection catalog, runbooks, production plan
-scripts/     lab.ps1, password rotation, retention policy, lab status, e2e check, latency
+docs/        architecture, detection catalog, ATT&CK layer, dashboards, runbooks, production plan
+scripts/     lab.ps1, password rotation, retention, dashboards, lab status, e2e check, latency
 ```
 
 ## About this public version

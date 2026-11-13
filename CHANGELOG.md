@@ -1,5 +1,30 @@
 # Changelog
 
+## [Unreleased] - SOC dashboards as code, MITRE layer
+
+### Added
+- Dashboards **InsurCo - SOC Overview** (alert volume, critical count = level 12+, alerts over
+  time by level, top rules, top source IPs, alerts per agent) and **InsurCo - Insurer Security**
+  (customer-data access day/night/mass, brute force -> compromise, web campaigns by technique,
+  privilege changes, activity heatmap by hour of day in `LAB_TZ`), stored in `dashboards/*.ndjson`.
+- `scripts/build_dashboards.py`: panels defined in code, created through the Dashboards
+  saved-objects API (`_bulk_create?overwrite=true`) and exported back with `_export`
+  (normalised: sorted, no timestamps), so the files are produced by OpenSearch Dashboards.
+- `scripts/import_dashboards.py`: idempotent import (`_import?overwrite=true`, fixed ids) after
+  startup; `make up` / `lab.ps1 up` run it, plus `make dashboards` / `lab.ps1 dashboards`.
+  Own index pattern `insurco-alerts`, so nothing depends on the Wazuh app being opened first.
+- `detection/tests/test_dashboards.py`: every `rule.id` / `rule.groups` in a panel query must be
+  an alert (level >= 3) with a positive detection test; files self-contained and in sync with
+  the builder.
+- `scripts/gen_mitre_layer.py` -> `docs/mitre-layer.json` (ATT&CK Navigator layer 4.5): score =
+  number of rules per technique, rules listed per cell; `--check` in CI and `make unit`;
+  `make mitre`. Linked from the README.
+- `scripts/screenshot_dashboards.py` (Playwright, headless) -> `docs/img/*.png`; `docs/dashboards.md`.
+
+### Changed
+- `scripts/indexer_client.py` also talks to the dashboard (`dashboard_request`, TLS verified
+  against the lab CA for `wazuh.dashboard`).
+
 ## [0.5.0] - 2026-11-13 - Real services in the lab
 
 ### Added

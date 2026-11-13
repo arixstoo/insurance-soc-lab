@@ -11,7 +11,7 @@ Status: ✅ done · 🔨 in progress · ⬜ planned
 | 2 | Endpoints and telemetry v3 | `v0.3.0` | ✅ |
 | 3 | Detection engineering v2 | `v0.4.0` | ✅ |
 | 4 | Real services, real attacks in the lab | `v0.5.0` | ✅ |
-| 5 | SOC dashboards as code + MITRE layer | `v0.6.0` | ⬜ |
+| 5 | SOC dashboards as code + MITRE layer | `v0.6.0` | 🔨 |
 | 6 | Response: runbooks, alerting, active response | `v0.7.0` | ⬜ |
 | 7 | Portability: Sigma rules + threat intel | `v0.8.0` | ⬜ |
 | 8 | Publication: docs, demo, v1.0 | `v1.0.0` | ⬜ |
@@ -128,15 +128,22 @@ scenario's expected rules in alerts within 10 minutes.
 
 **Done when:** the same rules fire on both simulated and real logs.
 
-## Phase 5 - SOC dashboards as code ⬜
+## Phase 5 - SOC dashboards as code 🔨
 
 **Goal:** dashboards that rebuild themselves after a reset.
 
-- [ ] "SOC Overview" and "Insurer Security" dashboards exported as `.ndjson` in `dashboards/`
-- [ ] `scripts/import-dashboards.sh` (Dashboards saved-objects API)
-- [ ] Panels filter on rule IDs and groups that tests prove exist
-- [ ] MITRE ATT&CK Navigator layer (`docs/mitre-layer.json`) generated from the rules
-- [ ] Screenshots for the README
+- [x] "SOC Overview" and "Insurer Security" dashboards exported as `.ndjson` in `dashboards/`,
+      defined in `scripts/build_dashboards.py` and built through the saved-objects API
+      (`_bulk_create`, then `_export`), not clicked together by hand
+- [x] `scripts/import_dashboards.py` (saved-objects `_import?overwrite=true`, idempotent),
+      run by `make up` / `lab.ps1 up` and therefore by the e2e workflow
+- [x] Panels filter on rule IDs and groups that tests prove exist
+      (`detection/tests/test_dashboards.py`: alert level >= 3 and a positive case)
+- [x] MITRE ATT&CK Navigator layer (`docs/mitre-layer.json`) generated from the rules
+      (`scripts/gen_mitre_layer.py`, CI `--check`), colour = number of rules per technique
+- [x] Screenshots for the README, taken headless (`scripts/screenshot_dashboards.py`) on a lab
+      restarted from `down -v` with every scenario injected
+- [ ] Release `v0.6.0` (CI green)
 
 **Done when:** after `make reset`, both dashboards show data with no manual click.
 **Content:** Instagram carousel - "what an analyst sees in the first 30 seconds".
