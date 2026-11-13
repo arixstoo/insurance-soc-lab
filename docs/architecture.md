@@ -45,6 +45,7 @@ flowchart LR
 | `srv-web-01` | built from `agents/` | Business web app: Apache access log |
 | `srv-db-01` | built from `agents/` | Customer database: audit log (JSON) |
 | `ws-claims-01` | built from `agents/` | Claims workstation: Windows security events (JSON) |
+| `real-*` (profile `real`) | built from `real/` | Real sshd, nginx, PostgreSQL+pgaudit hosts with their own agents, and a test client: [real-services.md](real-services.md) |
 
 ## Design decisions
 
@@ -73,6 +74,9 @@ flowchart LR
   on each side, 10% at night, x0.2 on Friday and Saturday. It is a non-homogeneous Poisson
   flow made by thinning (candidates at the peak rate, each kept with the profile's
   probability). Attacks ignore it: attackers do not keep office hours.
+- **Real services are opt-in** (compose profile `real`): real sshd / nginx / PostgreSQL hosts
+  on an internal network (`lab-real`, `10.20.60.0/24`, no route out), next to the simulated
+  ones, to prove the rules on genuine logs ([real-services.md](real-services.md)).
 - **Simulated Windows events are JSON**, not real EVTX. That keeps the lab
   light and portable; real Windows telemetry (Sysmon) is a roadmap item.
 

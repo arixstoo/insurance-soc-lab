@@ -16,6 +16,8 @@ from indexer_client import indexer_password, request
 
 MANAGER = os.environ.get("ISLAB_MANAGER", "islab-wazuh.manager-1")
 EXPECTED_AGENTS = {"srv-linux-01", "srv-web-01", "srv-db-01", "ws-claims-01"}
+# Compose profile `real` (docs/real-services.md): expected too when its containers run
+REAL_AGENTS = {"real-linux-01", "real-web-01", "real-db-01"}
 ENV = {**os.environ, "MSYS_NO_PATHCONV": "1"}
 ISM_POLICY = "insurco-alerts-retention"
 # Public wazuh-docker lab defaults (also in .env.example): none of them may still work.
@@ -36,11 +38,17 @@ def sh(*args: str) -> str:
     return result.stdout
 
 
+def real_profile_running() -> bool:
+    return bool(sh("docker", "compose", "--profile", "real", "ps", "-q", "--status", "running",
+                   *sorted(REAL_AGENTS)).strip())
+
+
 def check_agents() -> bool:
     print("== agents ==")
     listing = sh("docker", "exec", MANAGER, "/var/ossec/bin/agent_control", "-l")
     ok = True
-    for name in sorted(EXPECTED_AGENTS):
+    expected = EXPECTED_AGENTS | (REAL_AGENTS if real_profile_running() else set())
+    for name in sorted(expected):
         line = next((line for line in listing.splitlines() if f"Name: {name}," in line), "")
         active = "Active" in line
         ok &= active
@@ -109,7 +117,7 @@ def check_rules() -> bool:
 
 def main() -> int:
     print("== containers ==")
-    print(sh("docker", "compose", "ps", "--format", "table {{.Service}}\t{{.Status}}"))
+    print(sh("docker", "compose", "--profile", "real", "ps", "--format", "table {{.Service}}\t{{.Status}}"))
     results = [check_agents(), check_credentials(), check_retention(), check_rules()]
     ok = all(results)
     print("\nOK" if ok else "\nNOT READY (see above)")

@@ -36,6 +36,59 @@
 </decoder>
 
 <!-- ===================================================== -->
+<!-- REAL PostgreSQL audit trail (pgaudit, jsonlog)          -->
+<!-- ===================================================== -->
+<!-- real-db-01 (compose profile `real`): PostgreSQL 18, log_destination = jsonlog,
+     pgaudit.log_relation = on (one line per table), pgaudit.log_rows = on. A line:
+       {"timestamp":"...","user":"lab_analyst","dbname":"insurco","remote_host":"10.20.60.50",
+        ...,"message":"AUDIT: SESSION,1,1,READ,SELECT,TABLE,public.clients,SELECT * FROM clients,<not logged>,800",...}
+     The message is pgaudit's CSV: audit type, statement id, substatement id, class, command,
+     object type, object name, statement, parameter, rows.
+     The fields get the SAME names as the simulated audit trail (db_user, table,
+     rows_returned, srcip), so rules 100131-100134 apply to both (via 100136).
+     No JSON plugin here: its "user" key would land in a static field; the regexes are
+     order-independent instead. Only AUDIT lines match: other server log lines (startup,
+     errors) fall through to the generic json decoder. -->
+
+<decoder name="insurco-pgaudit">
+  <prematch type="pcre2">^\{.*"message":"AUDIT: (?:SESSION|OBJECT),</prematch>
+</decoder>
+
+<decoder name="insurco-pgaudit-fields">
+  <parent>insurco-pgaudit</parent>
+  <regex type="pcre2">"user":"([^"]+)"</regex>
+  <order>db_user</order>
+</decoder>
+
+<decoder name="insurco-pgaudit-fields">
+  <parent>insurco-pgaudit</parent>
+  <regex type="pcre2">"dbname":"([^"]+)"</regex>
+  <order>db_name</order>
+</decoder>
+
+<!-- remote_host is "[local]" for Unix-socket sessions: only an address becomes srcip -->
+<decoder name="insurco-pgaudit-fields">
+  <parent>insurco-pgaudit</parent>
+  <regex type="pcre2">"remote_host":"([0-9a-fA-F.:]+)"</regex>
+  <order>srcip</order>
+</decoder>
+
+<!-- class, command, object type, table without its schema ("public.clients" -> "clients") -->
+<decoder name="insurco-pgaudit-fields">
+  <parent>insurco-pgaudit</parent>
+  <regex type="pcre2">"message":"AUDIT: (SESSION|OBJECT),\d+,\d+,([A-Z]+),([A-Z ]+),([A-Z ]*),(?:[^",.]*\.)?([^",]*),</regex>
+  <order>audit_type,audit_class,command,object_type,table</order>
+</decoder>
+
+<!-- Rows = the last CSV field of the message. The statement may contain commas and escaped
+     quotes, so the whole JSON string is consumed ([^"\\] or an escape) before the last ",N". -->
+<decoder name="insurco-pgaudit-fields">
+  <parent>insurco-pgaudit</parent>
+  <regex type="pcre2">"message":"AUDIT: (?:[^"\\]|\\.)*,(\d+)"</regex>
+  <order>rows_returned</order>
+</decoder>
+
+<!-- ===================================================== -->
 <!-- Windows-style security events: {"log_type": "winsec"}  -->
 <!-- ===================================================== -->
 

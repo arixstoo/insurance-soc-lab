@@ -106,10 +106,13 @@ def posix_tz_for_hour(target_hour: int, now: dt.datetime | None = None) -> str:
 
 
 def render(line: str, when: dt.datetime | None = None) -> str:
+    """Fill the timestamp placeholders: {ts} classic syslog, {iso_ts} RFC 3339 syslog
+    (rsyslog default on Ubuntu >= 24.04), {apache_ts} Apache / nginx, {pg_ts} PostgreSQL jsonlog."""
     when = when or dt.datetime.now()
-    return line.replace("{ts}", when.strftime("%b %d %H:%M:%S")).replace(
-        "{apache_ts}", when.strftime("%d/%b/%Y:%H:%M:%S +0100")
-    )
+    return (line.replace("{ts}", when.strftime("%b %d %H:%M:%S"))
+            .replace("{iso_ts}", when.strftime("%Y-%m-%dT%H:%M:%S.000000+01:00"))
+            .replace("{apache_ts}", when.strftime("%d/%b/%Y:%H:%M:%S +0100"))
+            .replace("{pg_ts}", when.strftime("%Y-%m-%d %H:%M:%S.000 CET")))
 
 
 def docker(*args: str, stdin: str | None = None, check: bool = True) -> str:

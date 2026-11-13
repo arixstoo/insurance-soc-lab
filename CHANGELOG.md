@@ -1,5 +1,52 @@
 # Changelog
 
+## [0.5.0] - 2026-11-13 - Real services in the lab
+
+### Added
+- **Compose profile `real`** (`docker compose --profile real up -d --build`, `make up REAL=1`,
+  `lab.ps1 up -Real`): real hosts next to the simulated ones, each with its own agent reading
+  the log its software really writes. Built FROM the lab agent image (additional build
+  context `service:srv-linux-01`). The default lab is unchanged. `docs/real-services.md`.
+- `real-linux-01`: OpenSSH 10.2 + rsyslog (Ubuntu defaults, RFC 3339 timestamps) + auditd
+  (best effort), lab accounts `lab.tester` / `lab.ops`; agent on `/var/log/auth.log` and
+  `/var/log/audit/audit.log`.
+- `real-web-01`: nginx serving a static claims portal; agent on the real access log.
+- `real-db-01`: PostgreSQL 18 + pgaudit (`jsonlog`, `log_relation`, `log_rows`), FAKE seed
+  dataset generated at build time (`real/db/gen_seed.py`, Faker 40.50.0, seed 2026).
+- `real-client` + `lab-traffic` (`make traffic`): scripted failed/successful SSH logins
+  (sshpass), the `real: true` web requests of `cases.yaml` (curl), normal queries, an
+  allow-listed extract and a bulk export (psql). Internal network `lab-real` (no route out),
+  targets checked against `10.20.60.0/24`, passwords generated per lab by `real-secrets`.
+- Decoder `insurco-pgaudit`: the real audit trail mapped to the simulated field names.
+- Rules **100135** (pgaudit event), **100136** (pgaudit READ), **100137** (bulk read, twin of
+  100131), **100138** (bulk read at night, twin of 100133); 100132 and 100134 count both trails.
+- 17 detection cases on the shape of the real logs (sshd-session with PAM lines, nginx from
+  the test client, pgaudit lines with quoted statements) -> 77 cases; `{iso_ts}` / `{pg_ts}`
+  placeholders; `real:` key in `cases.yaml`. Unit test: 100137 / 100138 must test exactly
+  what 100131 / 100133 test.
+- `scripts/e2e.sh`: real mode (auto when `real-client` runs, `E2E_REAL`): 7 agents, real
+  traffic, expected rules asserted per real host, "same detection family" table.
+  `e2e.yml` runs it (`COMPOSE_PROFILES=real`). `lab_status.py` expects the real agents when
+  they run. CI lints `real/` and validates the profile's compose config.
+
+### Changed
+- `scripts/e2e.sh` counts alerts per agent and rule (was per rule).
+- `make down` / `make reset` (and `lab.ps1`) also stop the real hosts.
+
+### Found (documented, not changed)
+- A burst of 5 bulk reads ~40 ms apart missed 100132 once on a CI runner (likely a race in
+  analysisd's rule-matching threads); `lab-traffic` spaces them 1 s apart. Coverage gap noted.
+- The replay engine's 5 ms clock settle was too short on a busy CI runner (two timed window
+  cases flipped); detection tests now wait 0.1 s (`REPLAY_SETTLE`), the noise replay keeps 5 ms.
+- Wazuh `ignore` mutes the whole rule after it fires, whatever the source: a second attacker
+  inside the window raises no correlation (100100 60 s, 100129 120 s, 100132 / 100134 300 s).
+  Coverage gap in the catalog; `e2e.sh` sends the real traffic first, then waits 315 s.
+- `<if_sid>` with two parents on 100131 broke the group correlation 100132; an
+  `if_matched_group` rule only sees group rules defined before it.
+- `wazuh-analysisd` is chrooted without zoneinfo: with `LAB_TZ=Africa/Algiers` the running
+  lab evaluates `<time>` rules in UTC (one hour off). Tests and e2e use POSIX TZ strings and
+  are not affected. Candidate fix: a POSIX default (`CET-1`).
+
 ## [0.4.0] - 2026-11-12 - Detection engineering v2
 
 ### Added

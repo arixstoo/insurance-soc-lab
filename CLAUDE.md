@@ -26,7 +26,7 @@ honesty and documentation matter as much as features.
 
 | Task | Command |
 |---|---|
-| Lint | `ruff check simulator detection/tests scripts` |
+| Lint | `ruff check simulator detection/tests scripts real` |
 | Unit tests | `cd simulator && python -m pytest -q` + `python -m pytest -q detection/tests` (rule coverage, catalog) |
 | Detection tests | `python detection/tests/run_tests.py` (`-k <regex>` to filter) |
 | Detection catalog | `python scripts/gen_catalog.py` (CI: `--check`) - never edit the generated tables by hand |
@@ -38,7 +38,8 @@ honesty and documentation matter as much as features.
 | Trigger a scenario | `docker compose exec simulator insurco-sim inject <name>` |
 | E2E check (running lab) | `bash scripts/e2e.sh` (CI: `e2e.yml`, manager clock pinned to midday) |
 | Measure | `docker compose exec simulator insurco-sim stats` · `python scripts/measure_latency.py` |
-| Stop / wipe | `docker compose down` / `docker compose down -v` |
+| Real services (profile `real`) | `make up REAL=1` · `make traffic` (= `docker compose --profile real exec real-client lab-traffic all`) · `docs/real-services.md` |
+| Stop / wipe | `make down` / `make reset` (include the `real` profile) |
 
 ## Wazuh facts learned the hard way
 
@@ -64,6 +65,16 @@ honesty and documentation matter as much as features.
 - CDB lists are compiled next to their text file (`.cdb`): mount `detection/lists` under
   `/wazuh-config-mount/etc/lists/insurco` (copied at start), never read-only in place.
 - Rules below `log_alert_level` (3) still match and still feed `if_matched_sid` (100141).
+- `ignore` mutes the WHOLE rule after it fires, not per srcip / user: a second source inside
+  the window raises nothing. e2e sends the real traffic first, then waits > the largest ignore.
+- A rule with only `<if_matched_group>` (100132) is attached to the group's rules defined
+  BEFORE it in the file. Two parents (`<if_sid>a,b</if_sid>` or `<if_group>`) on a rule that
+  feeds a group correlation broke it (100131): real-trail twins 100137 / 100138 instead,
+  kept identical by `test_rule_coverage.py`.
+- Correlation memory is shared by all logtest sessions of one engine: give every correlated
+  test case its own srcip / user.
+- analysisd runs chrooted without zoneinfo: a named `TZ` (Africa/Algiers) falls back to UTC;
+  POSIX strings (`LAB-14`) work.
 - Correlation windows use a cached `time(NULL)` refreshed every second
   (`w_get_current_time`); `<time>` uses the wall clock. Time-dependent tests (`at:`) and the
   noise replay use `detection/replay/` (clockshim) to move both.
@@ -73,6 +84,9 @@ honesty and documentation matter as much as features.
 - Git Bash rewrites `/var/...` arguments: set `MSYS_NO_PATHCONV=1` for `docker exec`.
 - Windows reserves TCP ports around 55000 (Hyper-V): the Wazuh API is not published.
 - Keep LF line endings (`.gitattributes`); shell scripts run in Linux containers.
+- auditd cannot run in Docker Desktop containers (WSL2 kernel refuses audit netlink).
+- A rebuilt agent container is refused under its old name until the manager sees the old one
+  disconnected (10 min): `docker compose restart wazuh.manager` instead of waiting.
 
 ## Definition of done (every change)
 
@@ -81,7 +95,7 @@ honesty and documentation matter as much as features.
   the false-positive row), `ROADMAP.md` checkboxes, `CHANGELOG.md` (Unreleased).
 - Rule changes: `scripts/noise_report.py` still under budget; record tuning in the catalog.
 - For lab changes: `docker compose up -d --build` from a clean state
-  (`down -v`) reaches 4 active agents and `lab_status.py` prints `OK`.
+  (`down -v`) reaches 4 active agents (7 with `--profile real`) and `lab_status.py` prints `OK`.
 - Conventional Commits, small focused commits (`feat(detection): ...`).
 
 ## Where things are

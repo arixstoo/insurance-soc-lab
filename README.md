@@ -88,11 +88,22 @@ python scripts/measure_latency.py                 # log line -> alert -> searcha
 bash scripts/e2e.sh                               # inject every scenario, assert its rules in the indexer
 ```
 
+**Real services** (optional, compose profile `real`): a real `sshd`, a real nginx and a real
+PostgreSQL with `pgaudit`, each with its own agent, plus a test client that sends scripted
+failed logins, malformed web requests and a bulk export to those containers only. The same
+detection families fire on the simulated and the real logs; the differences are documented
+in [docs/real-services.md](docs/real-services.md).
+
+```bash
+make up REAL=1      # PowerShell: .\scripts\lab.ps1 up -Real   - 3 more agents
+make traffic        # PowerShell: .\scripts\lab.ps1 traffic    - lab-traffic all
+```
+
 ## Test the detections
 
 ```bash
 pip install pyyaml
-python detection/tests/run_tests.py        # 25 cases against wazuh/wazuh-manager:4.14.9
+python detection/tests/run_tests.py        # 77 cases against wazuh/wazuh-manager:4.14.9
 ```
 
 ```text
@@ -101,15 +112,17 @@ python detection/tests/run_tests.py        # 25 cases against wazuh/wazuh-manage
   PASS  repeated bulk reads by one user = insider threat  (fired 100132)
   PASS  bulk read at night  (fired 100133)
   ...
-25/25 passed
+77/77 passed
 ```
 
 Rules with an office-hours condition are tested by starting the manager on a
 clock where it is 02:00 or 12:00 - Wazuh evaluates `<time>` on the manager
 clock, not on the log timestamp.
 
-On top of that, the `e2e` workflow starts the **whole lab** on a GitHub runner, injects
-every scenario and checks that each expected rule reaches the indexer.
+On top of that, the `e2e` workflow starts the **whole lab** on a GitHub runner (with the
+real services), injects every scenario, sends the test client's traffic to the real hosts,
+and checks that each expected rule reaches the indexer - from the real host's agent for the
+real traffic.
 
 ## Repository layout
 

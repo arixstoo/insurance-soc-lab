@@ -9,13 +9,18 @@
 #   at:         optional, seconds offset of each line. The case then runs on the replay
 #               engine (detection/replay/), whose clock follows these offsets: this is how
 #               time windows (timeframe / frequency) are tested without waiting.
+#   real:       true = the lab test client (real/client/lab_traffic.py, compose profile
+#               `real`) also sends this web request, with curl, to the real nginx host.
+#               Cases with `expect` are the malformed requests, the others the benign ones.
 #
 # Every rule in detection/rules/insurco_rules.xml needs at least one positive and one
 # negative case: detection/tests/test_rule_coverage.py fails otherwise.
 #
-# Placeholders: {ts} = syslog timestamp, {apache_ts} = Apache timestamp.
+# Placeholders: {ts} = syslog timestamp, {iso_ts} = RFC 3339 syslog timestamp,
+# {apache_ts} = Apache / nginx timestamp, {pg_ts} = PostgreSQL jsonlog timestamp.
 # All IPs are documentation ranges (RFC 5737) or lab-private ranges (10.20.0.0/16).
 # 10.20.5.10 is the allow-listed internal vulnerability scanner (detection/lists/scanner-ips).
+# 10.20.60.50 is the lab test client of the real hosts (docker-compose.yml, profile `real`).
 
 cases:
   # ---------- SSH ----------
@@ -134,6 +139,76 @@ cases:
       - "{ts} srv-linux-01 sshd[2504]: Accepted password for root from 10.20.10.15 port 50122 ssh2"
     expect_not: "100103"
 
+  # ---------- real sshd (real-linux-01, compose profile `real`) ----------
+  # Shape captured from the real host: RFC 3339 timestamps (Ubuntu rsyslog default), OpenSSH 10
+  # program name sshd-session, and three events per failed password (unix_chkpwd, PAM, sshd).
+  - name: real sshd - one failed password with its PAM lines stays a built-in alert
+    lines:
+      - '{iso_ts} real-linux-01 unix_chkpwd[380]: password check failed for user (lab.tester)'
+      - '{iso_ts} real-linux-01 sshd-session[378]: pam_unix(sshd:auth): authentication failure; logname= uid=0 euid=0 tty=ssh ruser= rhost=10.20.60.50  user=lab.tester'
+      - '{iso_ts} real-linux-01 sshd-session[378]: Failed password for lab.tester from 10.20.60.50 port 45452 ssh2'
+    expect: "5760"
+    expect_not: "100100"
+
+  - name: real sshd - 6 failed passwords with their PAM lines = brute force
+    lines:
+      - '{iso_ts} real-linux-01 unix_chkpwd[380]: password check failed for user (lab.tester)'
+      - '{iso_ts} real-linux-01 sshd-session[378]: pam_unix(sshd:auth): authentication failure; logname= uid=0 euid=0 tty=ssh ruser= rhost=10.20.60.50  user=lab.tester'
+      - '{iso_ts} real-linux-01 sshd-session[378]: Failed password for lab.tester from 10.20.60.50 port 45452 ssh2'
+      - '{iso_ts} real-linux-01 unix_chkpwd[383]: password check failed for user (lab.tester)'
+      - '{iso_ts} real-linux-01 sshd-session[381]: pam_unix(sshd:auth): authentication failure; logname= uid=0 euid=0 tty=ssh ruser= rhost=10.20.60.50  user=lab.tester'
+      - '{iso_ts} real-linux-01 sshd-session[381]: Failed password for lab.tester from 10.20.60.50 port 45453 ssh2'
+      - '{iso_ts} real-linux-01 unix_chkpwd[386]: password check failed for user (lab.tester)'
+      - '{iso_ts} real-linux-01 sshd-session[384]: pam_unix(sshd:auth): authentication failure; logname= uid=0 euid=0 tty=ssh ruser= rhost=10.20.60.50  user=lab.tester'
+      - '{iso_ts} real-linux-01 sshd-session[384]: Failed password for lab.tester from 10.20.60.50 port 45454 ssh2'
+      - '{iso_ts} real-linux-01 unix_chkpwd[389]: password check failed for user (lab.tester)'
+      - '{iso_ts} real-linux-01 sshd-session[387]: pam_unix(sshd:auth): authentication failure; logname= uid=0 euid=0 tty=ssh ruser= rhost=10.20.60.50  user=lab.tester'
+      - '{iso_ts} real-linux-01 sshd-session[387]: Failed password for lab.tester from 10.20.60.50 port 45455 ssh2'
+      - '{iso_ts} real-linux-01 unix_chkpwd[392]: password check failed for user (lab.tester)'
+      - '{iso_ts} real-linux-01 sshd-session[390]: pam_unix(sshd:auth): authentication failure; logname= uid=0 euid=0 tty=ssh ruser= rhost=10.20.60.50  user=lab.tester'
+      - '{iso_ts} real-linux-01 sshd-session[390]: Failed password for lab.tester from 10.20.60.50 port 45456 ssh2'
+      - '{iso_ts} real-linux-01 unix_chkpwd[395]: password check failed for user (lab.tester)'
+      - '{iso_ts} real-linux-01 sshd-session[393]: pam_unix(sshd:auth): authentication failure; logname= uid=0 euid=0 tty=ssh ruser= rhost=10.20.60.50  user=lab.tester'
+      - '{iso_ts} real-linux-01 sshd-session[393]: Failed password for lab.tester from 10.20.60.50 port 45457 ssh2'
+    expect: "100100"
+
+  - name: real sshd - brute force then the right password = account compromise
+    clock: day
+    lines:
+      - '{iso_ts} real-linux-01 unix_chkpwd[380]: password check failed for user (lab.tester)'
+      - '{iso_ts} real-linux-01 sshd-session[378]: pam_unix(sshd:auth): authentication failure; logname= uid=0 euid=0 tty=ssh ruser= rhost=10.20.60.50  user=lab.tester'
+      - '{iso_ts} real-linux-01 sshd-session[378]: Failed password for lab.tester from 10.20.60.50 port 45452 ssh2'
+      - '{iso_ts} real-linux-01 sshd-session[378]: Connection closed by authenticating user lab.tester 10.20.60.50 port 45452 [preauth]'
+      - '{iso_ts} real-linux-01 unix_chkpwd[383]: password check failed for user (lab.tester)'
+      - '{iso_ts} real-linux-01 sshd-session[381]: pam_unix(sshd:auth): authentication failure; logname= uid=0 euid=0 tty=ssh ruser= rhost=10.20.60.50  user=lab.tester'
+      - '{iso_ts} real-linux-01 sshd-session[381]: Failed password for lab.tester from 10.20.60.50 port 45453 ssh2'
+      - '{iso_ts} real-linux-01 sshd-session[381]: Connection closed by authenticating user lab.tester 10.20.60.50 port 45453 [preauth]'
+      - '{iso_ts} real-linux-01 unix_chkpwd[386]: password check failed for user (lab.tester)'
+      - '{iso_ts} real-linux-01 sshd-session[384]: pam_unix(sshd:auth): authentication failure; logname= uid=0 euid=0 tty=ssh ruser= rhost=10.20.60.50  user=lab.tester'
+      - '{iso_ts} real-linux-01 sshd-session[384]: Failed password for lab.tester from 10.20.60.50 port 45454 ssh2'
+      - '{iso_ts} real-linux-01 sshd-session[384]: Connection closed by authenticating user lab.tester 10.20.60.50 port 45454 [preauth]'
+      - '{iso_ts} real-linux-01 unix_chkpwd[389]: password check failed for user (lab.tester)'
+      - '{iso_ts} real-linux-01 sshd-session[387]: pam_unix(sshd:auth): authentication failure; logname= uid=0 euid=0 tty=ssh ruser= rhost=10.20.60.50  user=lab.tester'
+      - '{iso_ts} real-linux-01 sshd-session[387]: Failed password for lab.tester from 10.20.60.50 port 45455 ssh2'
+      - '{iso_ts} real-linux-01 sshd-session[387]: Connection closed by authenticating user lab.tester 10.20.60.50 port 45455 [preauth]'
+      - '{iso_ts} real-linux-01 unix_chkpwd[392]: password check failed for user (lab.tester)'
+      - '{iso_ts} real-linux-01 sshd-session[390]: pam_unix(sshd:auth): authentication failure; logname= uid=0 euid=0 tty=ssh ruser= rhost=10.20.60.50  user=lab.tester'
+      - '{iso_ts} real-linux-01 sshd-session[390]: Failed password for lab.tester from 10.20.60.50 port 45456 ssh2'
+      - '{iso_ts} real-linux-01 sshd-session[390]: Connection closed by authenticating user lab.tester 10.20.60.50 port 45456 [preauth]'
+      - '{iso_ts} real-linux-01 unix_chkpwd[395]: password check failed for user (lab.tester)'
+      - '{iso_ts} real-linux-01 sshd-session[393]: pam_unix(sshd:auth): authentication failure; logname= uid=0 euid=0 tty=ssh ruser= rhost=10.20.60.50  user=lab.tester'
+      - '{iso_ts} real-linux-01 sshd-session[393]: Failed password for lab.tester from 10.20.60.50 port 45457 ssh2'
+      - '{iso_ts} real-linux-01 sshd-session[393]: Connection closed by authenticating user lab.tester 10.20.60.50 port 45457 [preauth]'
+      - '{iso_ts} real-linux-01 sshd-session[404]: Accepted password for lab.tester from 10.20.60.50 port 35808 ssh2'
+    expect: "100101"
+
+  - name: real sshd - normal login of a lab account is only a built-in event
+    clock: day
+    lines:
+      - '{iso_ts} real-linux-01 sshd-session[363]: Accepted password for lab.ops from 10.20.60.50 port 45446 ssh2'
+    expect: "5715"
+    expect_not: "100101"
+
   # ---------- sudo ----------
   - name: routine sudo is not flagged
     lines:
@@ -152,11 +227,13 @@ cases:
 
   # ---------- web ----------
   - name: normal page view
+    real: true
     lines:
       - '10.20.10.21 - - [{apache_ts}] "GET /policies/12345 HTTP/1.1" 200 5120 "-" "Mozilla/5.0"'
     expect_not: "100120"
 
   - name: sql injection
+    real: true
     lines:
       - '203.0.113.40 - - [{apache_ts}] "GET /claims/search?q=%27%20UNION%20SELECT%20username,password%20FROM%20users-- HTTP/1.1" 403 512 "-" "Mozilla/5.0"'
     expect: "100120"
@@ -167,11 +244,13 @@ cases:
     expect_not: "100120"
 
   - name: cross-site scripting
+    real: true
     lines:
       - '203.0.113.41 - - [{apache_ts}] "GET /search?q=<script>alert(1)</script> HTTP/1.1" 403 512 "-" "Mozilla/5.0"'
     expect: "100121"
 
   - name: ordinary search is not cross-site scripting
+    real: true
     lines:
       - '10.20.10.22 - - [{apache_ts}] "GET /search?q=policy%2012345 HTTP/1.1" 200 2048 "-" "Mozilla/5.0"'
     expect_not: "100121"
@@ -182,11 +261,13 @@ cases:
     expect_not: "100121"
 
   - name: path traversal
+    real: true
     lines:
       - '203.0.113.42 - - [{apache_ts}] "GET /documents/download?file=../../../../etc/passwd HTTP/1.1" 403 512 "-" "Mozilla/5.0"'
     expect: "100122"
 
   - name: normal document download is not path traversal
+    real: true
     lines:
       - '10.20.10.23 - - [{apache_ts}] "GET /documents/download?file=claim-48213.pdf HTTP/1.1" 200 81920 "-" "Mozilla/5.0"'
     expect_not: "100122"
@@ -197,6 +278,7 @@ cases:
     expect_not: "100122"
 
   - name: probe for .env
+    real: true
     lines:
       - '203.0.113.43 - - [{apache_ts}] "GET /.env HTTP/1.1" 404 196 "-" "Mozilla/5.0"'
     expect: "100123"
@@ -238,6 +320,17 @@ cases:
       - '10.20.5.10 - - [{apache_ts}] "GET /backup.sql HTTP/1.1" 404 196 "-" "Mozilla/5.0"'
       - '10.20.5.10 - - [{apache_ts}] "GET /.git/config HTTP/1.1" 404 196 "-" "Mozilla/5.0"'
     expect_not: "100129"
+
+  # ---------- real nginx (real-web-01): combined log format, requests sent by real-client ----------
+  - name: real nginx - SQL injection from the lab test client
+    lines:
+      - '10.20.60.50 - - [{apache_ts}] "GET /claims/search?q=%27%20UNION%20SELECT%20username,password%20FROM%20users-- HTTP/1.1" 200 393 "-" "lab-traffic/1.0 (insurance-soc-lab test client)"'
+    expect: "100120"
+
+  - name: real nginx - normal page view from the lab test client
+    lines:
+      - '10.20.60.50 - - [{apache_ts}] "GET /policies/12345 HTTP/1.1" 200 351 "-" "lab-traffic/1.0 (insurance-soc-lab test client)"'
+    expect_not: "100120"
 
   # ---------- database audit (decoder insurco-db-audit) ----------
   - name: normal single-record read
@@ -360,6 +453,87 @@ cases:
       - '{"log_type":"db_audit","db_user":"svc_reporting","table":"claims","query":"SELECT * FROM claims LIMIT 900","rows_returned":900,"source_ip":"10.20.20.5"}'
     expect: "100130"
     expect_not: "100133"
+
+  # ---------- real PostgreSQL audit trail (pgaudit, decoder insurco-pgaudit) ----------
+  # Shape captured from real-db-01: PostgreSQL 18 jsonlog, pgaudit log_relation + log_rows.
+  # One db_user per correlated case: correlation memory is shared by the cases of one engine.
+  - name: pgaudit - a server log line that is not an audit record
+    lines:
+      - '{"timestamp":"{pg_ts}","pid":64,"session_id":"6af62d08.40","line_num":2,"session_start":"{pg_ts}","txid":0,"error_severity":"LOG","message":"starting PostgreSQL 18.6 (Ubuntu 18.6-0ubuntu0.26.04.1) on x86_64-pc-linux-gnu, compiled by gcc (Ubuntu 15.2.0-16ubuntu1) 15.2.0, 64-bit","backend_type":"postmaster","query_id":0}'
+    expect_not: "100135"
+
+  - name: pgaudit - a write is audited but is not a read
+    lines:
+      - '{"timestamp":"{pg_ts}","user":"portal_app","dbname":"insurco","pid":441,"remote_host":"10.20.60.50","remote_port":52020,"session_id":"6af62c8a.1b9","line_num":1,"ps":"UPDATE","session_start":"{pg_ts}","vxid":"41/2","txid":0,"error_severity":"LOG","message":"AUDIT: SESSION,1,1,WRITE,UPDATE,TABLE,public.claims,UPDATE claims SET status = ''approved'' WHERE id = 42,<not logged>,1","application_name":"psql","backend_type":"client backend","query_id":0}'
+    expect: "100135"
+    expect_not: "100136"
+
+  - name: pgaudit - a bulk UPDATE of a sensitive table is not a bulk read
+    lines:
+      - '{"timestamp":"{pg_ts}","user":"lab_analyst","dbname":"insurco","pid":441,"remote_host":"10.20.60.50","remote_port":52020,"session_id":"6af62c8a.1b9","line_num":1,"ps":"UPDATE","session_start":"{pg_ts}","vxid":"41/2","txid":0,"error_severity":"LOG","message":"AUDIT: SESSION,1,1,WRITE,UPDATE,TABLE,public.claims,UPDATE claims SET status = ''paid'' WHERE status = ''approved'',<not logged>,350","application_name":"psql","backend_type":"client backend","query_id":0}'
+    expect: "100135"
+    expect_not: "100137"
+
+  - name: pgaudit - the portal reads one client
+    clock: day
+    lines:
+      - '{"timestamp":"{pg_ts}","user":"portal_app","dbname":"insurco","pid":430,"remote_host":"10.20.60.50","remote_port":52020,"session_id":"6af62c8a.1b9","line_num":1,"ps":"SELECT","session_start":"{pg_ts}","vxid":"41/2","txid":0,"error_severity":"LOG","message":"AUDIT: SESSION,1,1,READ,SELECT,TABLE,public.clients,SELECT id, full_name, city FROM clients WHERE id = 12,<not logged>,1","application_name":"psql","backend_type":"client backend","query_id":0}'
+    expect: "100136"
+    expect_not: "100137"
+
+  - name: pgaudit - a quoted statement with commas still gives the right row count
+    clock: day
+    lines:
+      - '{"timestamp":"{pg_ts}","user":"portal_app","dbname":"insurco","pid":431,"remote_host":"10.20.60.50","remote_port":52020,"session_id":"6af62c8a.1b9","line_num":1,"ps":"SELECT","session_start":"{pg_ts}","vxid":"41/2","txid":0,"error_severity":"LOG","message":"AUDIT: SESSION,1,1,READ,SELECT,TABLE,public.claims,\"SELECT c.id, c.status FROM claims c JOIN policies p ON p.id = c.policy_id WHERE p.client_id = 12\",<not logged>,2","application_name":"psql","backend_type":"client backend","query_id":0}'
+    expect: "100136"
+    expect_not: "100137"
+
+  - name: pgaudit - a bulk JOIN with commas and quotes is a bulk read
+    clock: day
+    lines:
+      - '{"timestamp":"{pg_ts}","user":"lab_bi_dev","dbname":"insurco","pid":432,"remote_host":"10.20.60.50","remote_port":52020,"session_id":"6af62c8a.1b9","line_num":1,"ps":"SELECT","session_start":"{pg_ts}","vxid":"41/2","txid":0,"error_severity":"LOG","message":"AUDIT: SESSION,1,1,READ,SELECT,TABLE,public.claims,\"SELECT c.id, c.status, c.amount_dzd FROM claims c JOIN policies p ON p.id = c.policy_id WHERE p.status = ''active''\",<not logged>,450","application_name":"psql","backend_type":"client backend","query_id":0}'
+    expect: "100137"
+
+  - name: pgaudit - bulk read of clients by a person
+    clock: day
+    lines:
+      - '{"timestamp":"{pg_ts}","user":"lab_claims_mgr","dbname":"insurco","pid":441,"remote_host":"10.20.60.50","remote_port":52020,"session_id":"6af62c8a.1b9","line_num":1,"ps":"SELECT","session_start":"{pg_ts}","vxid":"41/2","txid":0,"error_severity":"LOG","message":"AUDIT: SESSION,1,1,READ,SELECT,TABLE,public.clients,SELECT * FROM clients,<not logged>,800","application_name":"psql","backend_type":"client backend","query_id":0}'
+    expect: "100137"
+    expect_not: "100138"
+
+  - name: pgaudit - bulk extract by the allow-listed service account stays quiet
+    clock: day
+    lines:
+      - '{"timestamp":"{pg_ts}","user":"svc_reporting","dbname":"insurco","pid":639,"remote_host":"10.20.60.50","remote_port":52020,"session_id":"6af62c8a.1b9","line_num":1,"ps":"SELECT","session_start":"{pg_ts}","vxid":"41/2","txid":0,"error_severity":"LOG","message":"AUDIT: SESSION,1,1,READ,SELECT,TABLE,public.beneficiaries,SELECT * FROM beneficiaries,<not logged>,500","application_name":"psql","backend_type":"client backend","query_id":0}'
+    expect: "100136"
+    expect_not: "100137"
+
+  - name: pgaudit - bulk export of five sensitive tables = insider threat
+    clock: day
+    lines:
+      - '{"timestamp":"{pg_ts}","user":"lab_analyst","dbname":"insurco","pid":441,"remote_host":"10.20.60.50","remote_port":52020,"session_id":"6af62c8a.1b9","line_num":1,"ps":"SELECT","session_start":"{pg_ts}","vxid":"41/2","txid":0,"error_severity":"LOG","message":"AUDIT: SESSION,1,1,READ,SELECT,TABLE,public.clients,SELECT * FROM clients,<not logged>,800","application_name":"psql","backend_type":"client backend","query_id":0}'
+      - '{"timestamp":"{pg_ts}","user":"lab_analyst","dbname":"insurco","pid":442,"remote_host":"10.20.60.50","remote_port":52020,"session_id":"6af62c8a.1b9","line_num":1,"ps":"SELECT","session_start":"{pg_ts}","vxid":"41/2","txid":0,"error_severity":"LOG","message":"AUDIT: SESSION,1,1,READ,SELECT,TABLE,public.policies,SELECT * FROM policies,<not logged>,1200","application_name":"psql","backend_type":"client backend","query_id":0}'
+      - '{"timestamp":"{pg_ts}","user":"lab_analyst","dbname":"insurco","pid":443,"remote_host":"10.20.60.50","remote_port":52020,"session_id":"6af62c8a.1b9","line_num":1,"ps":"SELECT","session_start":"{pg_ts}","vxid":"41/2","txid":0,"error_severity":"LOG","message":"AUDIT: SESSION,1,1,READ,SELECT,TABLE,public.claims,SELECT * FROM claims,<not logged>,600","application_name":"psql","backend_type":"client backend","query_id":0}'
+      - '{"timestamp":"{pg_ts}","user":"lab_analyst","dbname":"insurco","pid":444,"remote_host":"10.20.60.50","remote_port":52020,"session_id":"6af62c8a.1b9","line_num":1,"ps":"SELECT","session_start":"{pg_ts}","vxid":"41/2","txid":0,"error_severity":"LOG","message":"AUDIT: SESSION,1,1,READ,SELECT,TABLE,public.payments,SELECT * FROM payments,<not logged>,900","application_name":"psql","backend_type":"client backend","query_id":0}'
+      - '{"timestamp":"{pg_ts}","user":"lab_analyst","dbname":"insurco","pid":445,"remote_host":"10.20.60.50","remote_port":52020,"session_id":"6af62c8a.1b9","line_num":1,"ps":"SELECT","session_start":"{pg_ts}","vxid":"41/2","txid":0,"error_severity":"LOG","message":"AUDIT: SESSION,1,1,READ,SELECT,TABLE,public.beneficiaries,SELECT * FROM beneficiaries,<not logged>,500","application_name":"psql","backend_type":"client backend","query_id":0}'
+    expect: "100132"
+    expect_not: "100134"
+
+  - name: pgaudit - one bulk read at night
+    clock: night
+    lines:
+      - '{"timestamp":"{pg_ts}","user":"lab_night_shift","dbname":"insurco","pid":443,"remote_host":"10.20.60.50","remote_port":52020,"session_id":"6af62c8a.1b9","line_num":1,"ps":"SELECT","session_start":"{pg_ts}","vxid":"41/2","txid":0,"error_severity":"LOG","message":"AUDIT: SESSION,1,1,READ,SELECT,TABLE,public.claims,SELECT * FROM claims,<not logged>,600","application_name":"psql","backend_type":"client backend","query_id":0}'
+    expect: "100138"
+
+  - name: pgaudit - bulk export of five sensitive tables at night
+    clock: night
+    lines:
+      - '{"timestamp":"{pg_ts}","user":"lab_analyst","dbname":"insurco","pid":441,"remote_host":"10.20.60.50","remote_port":52020,"session_id":"6af62c8a.1b9","line_num":1,"ps":"SELECT","session_start":"{pg_ts}","vxid":"41/2","txid":0,"error_severity":"LOG","message":"AUDIT: SESSION,1,1,READ,SELECT,TABLE,public.clients,SELECT * FROM clients,<not logged>,800","application_name":"psql","backend_type":"client backend","query_id":0}'
+      - '{"timestamp":"{pg_ts}","user":"lab_analyst","dbname":"insurco","pid":442,"remote_host":"10.20.60.50","remote_port":52020,"session_id":"6af62c8a.1b9","line_num":1,"ps":"SELECT","session_start":"{pg_ts}","vxid":"41/2","txid":0,"error_severity":"LOG","message":"AUDIT: SESSION,1,1,READ,SELECT,TABLE,public.policies,SELECT * FROM policies,<not logged>,1200","application_name":"psql","backend_type":"client backend","query_id":0}'
+      - '{"timestamp":"{pg_ts}","user":"lab_analyst","dbname":"insurco","pid":443,"remote_host":"10.20.60.50","remote_port":52020,"session_id":"6af62c8a.1b9","line_num":1,"ps":"SELECT","session_start":"{pg_ts}","vxid":"41/2","txid":0,"error_severity":"LOG","message":"AUDIT: SESSION,1,1,READ,SELECT,TABLE,public.claims,SELECT * FROM claims,<not logged>,600","application_name":"psql","backend_type":"client backend","query_id":0}'
+      - '{"timestamp":"{pg_ts}","user":"lab_analyst","dbname":"insurco","pid":444,"remote_host":"10.20.60.50","remote_port":52020,"session_id":"6af62c8a.1b9","line_num":1,"ps":"SELECT","session_start":"{pg_ts}","vxid":"41/2","txid":0,"error_severity":"LOG","message":"AUDIT: SESSION,1,1,READ,SELECT,TABLE,public.payments,SELECT * FROM payments,<not logged>,900","application_name":"psql","backend_type":"client backend","query_id":0}'
+      - '{"timestamp":"{pg_ts}","user":"lab_analyst","dbname":"insurco","pid":445,"remote_host":"10.20.60.50","remote_port":52020,"session_id":"6af62c8a.1b9","line_num":1,"ps":"SELECT","session_start":"{pg_ts}","vxid":"41/2","txid":0,"error_severity":"LOG","message":"AUDIT: SESSION,1,1,READ,SELECT,TABLE,public.beneficiaries,SELECT * FROM beneficiaries,<not logged>,500","application_name":"psql","backend_type":"client backend","query_id":0}'
+    expect: "100134"
 
   # ---------- windows-style events (decoder insurco-winsec) ----------
   - name: successful windows logon is only a base event

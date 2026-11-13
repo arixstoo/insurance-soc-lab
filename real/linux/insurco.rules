@@ -1,0 +1,18 @@
+## real-linux-01 - audit rules (auditd). Loaded by start.sh with auditctl when the kernel
+## lets the container use the audit subsystem (see docs/real-services.md).
+-D
+-b 8192
+
+## Identity and privilege files
+-w /etc/passwd -p wa -k insurco_identity
+-w /etc/shadow -p wa -k insurco_identity
+-w /etc/group -p wa -k insurco_identity
+-w /etc/sudoers -p wa -k insurco_privesc
+-w /etc/sudoers.d/ -p wa -k insurco_privesc
+
+## sshd configuration
+-w /etc/ssh/sshd_config -p wa -k insurco_sshd_config
+-w /etc/ssh/sshd_config.d/ -p wa -k insurco_sshd_config
+
+## Commands run as root by a logged-in human (auid = login user id)
+-a always,exit -F arch=b64 -S execve -F euid=0 -F auid>=1000 -F auid!=unset -k insurco_root_exec
