@@ -48,8 +48,10 @@
   for each agent's "Buffer agent.conf updated" (`E2E_RELOAD_TIMEOUT`, 90 s) before injecting.
 - Timed detection cases flipped on a busy CI runner (five bulk reads over 6 minutes counted
   inside the 5-minute window of 100132): the replay engine waited only 5 ms for analysisd's
-  cached clock. Detection tests now wait 0.1 s per clock move (`REPLAY_SETTLE`); the 24 h
-  noise replay keeps 5 ms.
+  cached clock. The thread that refreshes it also rotates the logs when the hour or day
+  changes, and every timed case starts a simulated day later: the replay now waits 1 s after
+  a move across an hour boundary (`REPLAY_BOUNDARY_SETTLE`), and the detection tests 0.1 s
+  after any other move (`REPLAY_SETTLE`; the 24 h noise replay keeps 5 ms).
 
 ## [0.3.0] - 2026-11-12 - Endpoints and telemetry v3, end-to-end test
 
