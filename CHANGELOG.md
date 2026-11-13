@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased] - SOC dashboards as code, MITRE layer
+## [0.6.0] - 2026-11-13 - SOC dashboards as code, MITRE layer
 
 ### Added
 - Dashboards **InsurCo - SOC Overview** (alert volume, critical count = level 12+, alerts over
@@ -24,6 +24,14 @@
 ### Changed
 - `scripts/indexer_client.py` also talks to the dashboard (`dashboard_request`, TLS verified
   against the lab CA for `wazuh.dashboard`).
+
+### Found (documented, not changed)
+- The first e2e run on `main` after the merge missed 100145 once (`rogue_admin`: 1/22 rules,
+  100143 present); the rerun was green (22/22). Not caused by this release (no rule, decoder,
+  simulator or e2e change). Likely the same analysisd race as the 0.5.0 burst finding: the
+  4720 and 4732 lines are written milliseconds apart, and a 4732 analysed first raises 100144
+  instead of 100145. The CI artifacts hold no alerts to confirm it. Candidate fix: space the two
+  events in the scenario.
 
 ## [0.5.0] - 2026-11-13 - Real services in the lab
 

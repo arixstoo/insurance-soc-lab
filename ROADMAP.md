@@ -11,7 +11,7 @@ Status: ✅ done · 🔨 in progress · ⬜ planned
 | 2 | Endpoints and telemetry v3 | `v0.3.0` | ✅ |
 | 3 | Detection engineering v2 | `v0.4.0` | ✅ |
 | 4 | Real services, real attacks in the lab | `v0.5.0` | ✅ |
-| 5 | SOC dashboards as code + MITRE layer | `v0.6.0` | 🔨 |
+| 5 | SOC dashboards as code + MITRE layer | `v0.6.0` | ✅ |
 | 6 | Response: runbooks, alerting, active response | `v0.7.0` | ⬜ |
 | 7 | Portability: Sigma rules + threat intel | `v0.8.0` | ⬜ |
 | 8 | Publication: docs, demo, v1.0 | `v1.0.0` | ⬜ |
@@ -128,7 +128,7 @@ scenario's expected rules in alerts within 10 minutes.
 
 **Done when:** the same rules fire on both simulated and real logs.
 
-## Phase 5 - SOC dashboards as code 🔨
+## Phase 5 - SOC dashboards as code ✅
 
 **Goal:** dashboards that rebuild themselves after a reset.
 
@@ -143,7 +143,7 @@ scenario's expected rules in alerts within 10 minutes.
       (`scripts/gen_mitre_layer.py`, CI `--check`), colour = number of rules per technique
 - [x] Screenshots for the README, taken headless (`scripts/screenshot_dashboards.py`) on a lab
       restarted from `down -v` with every scenario injected
-- [ ] Release `v0.6.0` (CI green)
+- [x] Release `v0.6.0` (CI and e2e green, lab restarted from a clean state)
 
 **Done when:** after `make reset`, both dashboards show data with no manual click.
 **Content:** Instagram carousel - "what an analyst sees in the first 30 seconds".
