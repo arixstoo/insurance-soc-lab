@@ -4,7 +4,7 @@ COMPOSE := docker compose $(if $(REAL),--profile real)
 # down / reset also stop the real hosts (compose profile `real`) when they run
 COMPOSE_ALL := docker compose --profile real
 
-.PHONY: help certs rotate up down reset status traffic test unit detection catalog mitre noise lint
+.PHONY: help certs rotate up down reset status traffic test unit detection catalog mitre dashboards noise lint
 
 help:           ## list the targets
 	@grep -E '^[a-z]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  make %-8s %s\n", $$1, $$2}'
@@ -15,12 +15,13 @@ certs:          ## generate TLS certificates (once)
 rotate:         ## new passwords for a fresh lab; on a running lab: make rotate APPLY=1
 	bash scripts/rotate-passwords.sh $(if $(APPLY),--apply)
 
-up:             ## certs + passwords if missing, build, start, wait, retention (REAL=1: + real hosts)
+up:             ## certs + passwords if missing, build, start, wait, retention, dashboards (REAL=1: + real hosts)
 	@test -d stack/certs || $(MAKE) certs
 	@test -f .env || $(MAKE) rotate
 	@grep -q '^INDEXER_USERS_FILE=' .env || echo "WARNING: .env still has the public default passwords - run: make reset rotate up"
 	$(COMPOSE) up -d --build --wait --wait-timeout 600
 	$(PYTHON) scripts/apply_ism.py
+	$(PYTHON) scripts/import_dashboards.py
 
 down:           ## stop the lab (data is kept)
 	$(COMPOSE_ALL) down
@@ -50,6 +51,9 @@ catalog:        ## regenerate docs/detection-catalog.md from the rules XML
 
 mitre:          ## regenerate docs/mitre-layer.json (ATT&CK Navigator) from the rules XML
 	$(PYTHON) scripts/gen_mitre_layer.py
+
+dashboards:     ## (re)import dashboards/*.ndjson into the running lab
+	$(PYTHON) scripts/import_dashboards.py
 
 noise:          ## 24 h of background traffic through the real engine -> docs/tuning-report.md
 	$(PYTHON) scripts/noise_report.py
