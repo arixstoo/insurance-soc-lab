@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased] - Real services in the lab (phase 4)
+## [0.5.0] - 2026-11-13 - Real services in the lab
 
 ### Added
 - **Compose profile `real`** (`docker compose --profile real up -d --build`, `make up REAL=1`,
