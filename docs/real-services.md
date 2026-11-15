@@ -162,6 +162,11 @@ the group's rules defined *before* it, so the real block sits above 100132 in th
   the same name and the manager refuses it until it considers the old agent disconnected
   (`agents_disconnection_time`, 10 min). `docker compose restart wazuh.manager` (or a clean
   `down -v`) avoids the wait.
+- **The active response blocks the test client** (phase 6, [response.md](response.md)): the
+  `ssh` job ends with a successful login after 6 failures, which raises 100101, so
+  `real-linux-01` drops `10.20.60.50` for 10 minutes. `lab-traffic ssh` (and `make traffic`)
+  run again inside that window stop with "unreachable: probably still blocked"; the web and
+  db jobs are not affected (other hosts).
 - **No Windows.** Real Windows events (Sysmon on a VM) remain an optional roadmap item.
 
 ## From lab to production

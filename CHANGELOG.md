@@ -1,5 +1,59 @@
 # Changelog
 
+## [Unreleased] - Response: runbooks, alert routing, active response (phase 6)
+
+### Added
+- **Runbooks** for every alert family, same template as `insider-data-access.md`:
+  `ssh-brute-force.md`, `web-attack-campaign.md`, `privilege-escalation.md`,
+  `windows-password-guessing.md`; `docs/runbooks/README.md` lists families, rules and the
+  automatic response of each.
+- Every alerting rule links its runbook with Wazuh's `<info type="link">` (21 rules). Wazuh
+  copies it into the alert (`rule.info`); `scripts/gen_catalog.py` links each rule's
+  description in the catalog to it, and `--check` fails on an alerting rule (level >= 3)
+  without a link or with a link to a missing file.
+- **Alert routing**: custom integration `custom-insurco-webhook` (`response/integrations/`,
+  manager's bundled Python 3.10, stdlib only) POSTs every alert of level >= 12 to a webhook:
+  Slack / Mattermost-compatible `text` + an `alert` object (rule, level, agent, source IP,
+  user, MITRE, runbook, first 1000 chars of the log); 5 s timeout, 3 attempts, failures
+  logged to `integrations.log`. Copied into the manager through `/wazuh-config-mount`.
+- **`webhook-receiver`** container (`response/webhook-receiver/`, stdlib, non-root): ingest
+  `POST /hooks/wazuh` on the lab network only, read-only viewer on <http://localhost:8088>
+  (HTML + `/api/messages`), messages kept in a volume. Attacker-controlled text escaped,
+  `Content-Security-Policy: default-src 'none'`, http(s) links only.
+- **Active response (lab only)**: on 100101, stock `firewall-drop` blocks the source IP on
+  the targeted host (`location local`) for 600 s, then execd removes the rule. `iptables` in
+  the agent image; `NET_ADMIN` on `srv-linux-01` and `real-linux-01` only.
+- `docs/response.md`: the flow as a mermaid sequence diagram, safety limits, production notes.
+- `response/tests/` (28 tests): message format, level filter, retries / give-up / bearer
+  token, integration -> receiver round trip, read-only viewer, XSS escaping, persistence,
+  and the config in git (one AR block on 100101 / 600 s / local, integration level 12 to the
+  receiver, exec bit, NET_ADMIN on the two SSH hosts only, never privileged, runbook index in
+  sync with the level 12+ rules). Run by `make unit`, `lab.ps1 test` and CI.
+- `scripts/check_response.py` (`make response`, `lab.ps1 response`): live proof on a running
+  lab - inject `brute_force` (and/or `lab-traffic ssh` on the real host), then 100101 indexed,
+  webhook message with runbook, iptables DROP on the targeted host, real client's TCP to sshd
+  timing out, block lifted after the timeout and sshd reachable again. `e2e.yml` runs it after
+  `e2e.sh` (`--no-inject --target both`; job timeout 45 -> 60 min).
+- `lab_status.py`: response section (receiver up, integratord running and the integration
+  enabled, execd running).
+
+### Changed
+- `lab-traffic ssh` stops at once with an explicit message when sshd is unreachable (the
+  client is still blocked by the active response), instead of 8 connection timeouts.
+- Lint and unit-test commands include `response/` (Makefile, `lab.ps1`, CI, CLAUDE.md).
+- `run_tests.py` (and so the noise replay) mounts the integration script like compose: with
+  the integration enabled and no script, integratord logs an ERROR naming it and the runner
+  took it for a rejected configuration (found on the first run after the change).
+
+### Found (documented, not changed)
+- Back-to-back brute forces (simulated then real, 15 s apart) gave no 100100 for the second
+  one: 100100's `ignore="60"` mutes the whole rule. Since phase 6 that also means no active
+  response for a second attacker. A random simulator brute force muted the retry the same
+  way. `check_response.py` waits the window between targets; deterministic runs disable
+  random attacks (`SIM_ATTACK_MIN/MAX=86400`), as e2e does. Coverage gap updated in the catalog.
+- The real SSH traffic also raises the stock rule 40112 (level 12, failures then a success),
+  which is routed to the webhook too (no runbook link: not one of our rules).
+
 ## [0.6.0] - 2026-11-13 - SOC dashboards as code, MITRE layer
 
 ### Added

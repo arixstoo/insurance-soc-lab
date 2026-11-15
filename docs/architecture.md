@@ -31,6 +31,9 @@ flowchart LR
     M -- alerts --> I
     D -- queries --> I
     U(("Analyst<br/>https://localhost")) --> D
+    M -- "level 12+ (integration)" --> W["webhook-receiver<br/>localhost:8088"]
+    U -.-> W
+    M -. "100101: firewall-drop 10 min" .-> A1
 ```
 
 ## Components
@@ -45,6 +48,7 @@ flowchart LR
 | `srv-web-01` | built from `agents/` | Business web app: Apache access log |
 | `srv-db-01` | built from `agents/` | Customer database: audit log (JSON) |
 | `ws-claims-01` | built from `agents/` | Claims workstation: Windows security events (JSON) |
+| `webhook-receiver` | built from `response/webhook-receiver/` | Offline chat channel: stores and shows the level 12+ alerts the manager's integration posts ([response.md](response.md)) |
 | `real-*` (profile `real`) | built from `real/` | Real sshd, nginx, PostgreSQL+pgaudit hosts with their own agents, and a test client: [real-services.md](real-services.md) |
 
 ## Design decisions
@@ -80,6 +84,10 @@ flowchart LR
 - **Real services are opt-in** (compose profile `real`): real sshd / nginx / PostgreSQL hosts
   on an internal network (`lab-real`, `10.20.60.0/24`, no route out), next to the simulated
   ones, to prove the rules on genuine logs ([real-services.md](real-services.md)).
+- **Response is lab-scoped.** Alerts of level 12+ go to a webhook (a local receiver, no
+  internet needed); the only active response blocks the source of 100101 on the targeted
+  host for 10 minutes, with `NET_ADMIN` on that container's own network namespace, never
+  `privileged` ([response.md](response.md)).
 - **Simulated Windows events are JSON**, not real EVTX. That keeps the lab
   light and portable; real Windows telemetry (Sysmon) is a roadmap item.
 
