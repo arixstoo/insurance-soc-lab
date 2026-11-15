@@ -21,7 +21,7 @@ concurrency:
 jobs:
   lab:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
     env:
       # Only the injected scenarios: a random attack just before them could open a
       # correlation rule's `ignore` window and hide the alert under test.
@@ -65,6 +65,12 @@ jobs:
 
       - name: End-to-end check (simulated scenarios + real services)
         run: bash scripts/e2e.sh
+
+      - name: Response chain (webhook + timed block on 100101, then its expiry)
+        # e2e.sh already ran a real and a simulated brute force: check that both produced the
+        # webhook message and the iptables block on the targeted host, then wait for execd to
+        # lift the blocks (600 s after each; adds up to ~10 min to the job). docs/response.md
+        run: python scripts/check_response.py --no-inject --lookback 1800 --target both
 
       - name: Lab status
         run: python scripts/lab_status.py

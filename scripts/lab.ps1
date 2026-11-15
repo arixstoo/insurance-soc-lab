@@ -7,12 +7,13 @@
   .\scripts\lab.ps1 up -Real       # + the real hosts (compose profile real, docs/real-services.md)
   .\scripts\lab.ps1 traffic        # scripted test traffic from the lab test client to the real hosts
   .\scripts\lab.ps1 status
+  .\scripts\lab.ps1 response     # brute force -> alert -> webhook -> 10 min block -> expiry (-Real: real host too)
   .\scripts\lab.ps1 rotate -Apply  # new passwords on a running lab
 #>
 [CmdletBinding()]
 param(
     [Parameter(Position = 0)]
-    [ValidateSet('help', 'certs', 'rotate', 'up', 'down', 'reset', 'status', 'traffic', 'test', 'lint', 'dashboards')]
+    [ValidateSet('help', 'certs', 'rotate', 'up', 'down', 'reset', 'status', 'traffic', 'response', 'test', 'lint', 'dashboards')]
     [string]$Verb = 'help',
     [switch]$Apply,
     [switch]$Real
@@ -38,8 +39,9 @@ switch ($Verb) {
             '  up       certs + passwords if missing, build, start, wait until healthy, retention, dashboards (-Real: + real hosts)'
             '  down     stop the lab (data is kept)'
             '  reset    stop and DELETE all lab data (volumes)'
-            '  status   containers, agents, passwords, retention, custom rules fired'
+            '  status   containers, agents, passwords, retention, response chain, custom rules fired'
             '  traffic  real hosts: scripted test traffic from the lab test client'
+            '  response brute force -> alert -> webhook -> 10 min block -> expiry, ~11 min (-Real: real host too)'
             '  test     unit tests + detection tests against the real engine'
             '  lint     ruff'
             '  dashboards  (re)import dashboards/*.ndjson into the running lab'
@@ -62,14 +64,19 @@ switch ($Verb) {
     'reset' { Invoke-Native { docker compose --profile real down -v } }
     'status' { Invoke-Native { python scripts/lab_status.py } }
     'traffic' { Invoke-Native { docker compose --profile real exec real-client lab-traffic all } }
+    'response' {
+        $target = if ($Real) { 'both' } else { 'simulated' }
+        Invoke-Native { python scripts/check_response.py --target $target }
+    }
     'test' {
         Push-Location simulator
         try { Invoke-Native { python -m pytest -q } } finally { Pop-Location }
         Invoke-Native { python -m pytest -q detection/tests }
+        Invoke-Native { python -m pytest -q response/tests }
         Invoke-Native { python scripts/gen_catalog.py --check }
         Invoke-Native { python scripts/gen_mitre_layer.py --check }
         Invoke-Native { python detection/tests/run_tests.py }
     }
-    'lint' { Invoke-Native { ruff check simulator detection/tests scripts real } }
+    'lint' { Invoke-Native { ruff check simulator detection/tests scripts real response } }
     'dashboards' { Invoke-Native { python scripts/import_dashboards.py } }
 }
