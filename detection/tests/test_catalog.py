@@ -65,3 +65,20 @@ def test_noise_report_helpers():
     results = [{"rule": "100141"}] * 4
     row = next(h for h in nr.headroom(events, results) if h["rule"] == "100142")
     assert (row["max"], row["entity"]) == (3, "10.20.10.9")
+
+
+def test_every_alerting_rule_links_an_existing_runbook():
+    assert gc.runbook_problems(RULES) == []
+    by_id = {r.id: r for r in RULES}
+    assert by_id["100101"].runbook == "ssh-brute-force.md"
+    assert "[SSH brute force" in gc.detection_cell(by_id["100100"])
+    assert gc.detection_cell(by_id["100100"]).endswith("(runbooks/ssh-brute-force.md)")
+
+
+def test_runbook_problems_are_reported(tmp_path):
+    rule = gc.Rule(id="100999", level=10, description="x", groups=[], mitre=[])
+    assert "has no <info" in gc.runbook_problems([rule])[0]
+    rule.links = [gc.RUNBOOK_BASE + "missing.md"]
+    assert "missing runbook" in gc.runbook_problems([rule], tmp_path)[0]
+    building_block = gc.Rule(id="100998", level=0, description="x", groups=[], mitre=[])
+    assert gc.runbook_problems([building_block]) == []
