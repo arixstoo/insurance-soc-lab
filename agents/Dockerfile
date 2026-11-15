@@ -5,8 +5,10 @@ FROM ubuntu:26.04
 ARG WAZUH_VERSION=4.14.9
 ENV DEBIAN_FRONTEND=noninteractive
 
+# iptables: used by the stock active response firewall-drop (docs/response.md); it only acts
+# when compose gives the container NET_ADMIN (srv-linux-01, real-linux-01).
 RUN apt-get update \
- && apt-get install -y --no-install-recommends ca-certificates curl gnupg gettext-base procps \
+ && apt-get install -y --no-install-recommends ca-certificates curl gnupg gettext-base procps iptables \
  && curl -fsSL https://packages.wazuh.com/key/GPG-KEY-WAZUH | gpg --dearmor -o /usr/share/keyrings/wazuh.gpg \
  && echo "deb [signed-by=/usr/share/keyrings/wazuh.gpg] https://packages.wazuh.com/4.x/apt/ stable main" \
       > /etc/apt/sources.list.d/wazuh.list \

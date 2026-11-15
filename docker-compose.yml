@@ -68,6 +68,10 @@ services:
       # CDB lists are compiled next to their text file, so they cannot be mounted read-only
       # in place: the image entrypoint copies /wazuh-config-mount into /var/ossec at start.
       - ./detection/lists:/wazuh-config-mount/etc/lists/insurco:ro
+      # Alert routing (docs/response.md): the custom integration, copied the same way into
+      # /var/ossec/integrations (a volume), so the script in git wins at every start.
+      - ./response/integrations/custom-insurco-webhook:/wazuh-config-mount/integrations/custom-insurco-webhook:ro
+      - ./response/integrations/custom-insurco-webhook.py:/wazuh-config-mount/integrations/custom-insurco-webhook.py:ro
     healthcheck:
       # Healthy once the daemons the agents and the dashboard rely on are all running
       test: ["CMD-SHELL", "test $$(/var/ossec/bin/wazuh-control status | grep -cE 'wazuh-(analysisd|remoted|authd|db|apid) is running') -eq 5"]
@@ -144,6 +148,22 @@ services:
       wazuh.indexer: { condition: service_healthy }
       wazuh.manager: { condition: service_healthy }
 
+  # ------------------------------------------------------------------ response
+  # Offline stand-in for a chat channel: the manager's integration POSTs every alert of
+  # level 12+ to :8080 (lab network only); http://localhost:8088 shows them, read-only.
+  webhook-receiver:
+    build: ./response/webhook-receiver
+    image: insurance-soc-lab/webhook-receiver:1.0.0
+    hostname: webhook-receiver
+    restart: unless-stopped
+    networks: [soc]
+    ports:
+      - "127.0.0.1:8088:8081"     # viewer only; the ingest port 8080 is not published
+    environment:
+      - TZ=${LAB_TZ:-Africa/Algiers}
+    volumes:
+      - webhook-messages:/data
+
   # ------------------------------------------------------------------ telemetry
   simulator:
     build: ./simulator
@@ -177,6 +197,9 @@ services:
         WAZUH_VERSION: ${WAZUH_VERSION:-4.14.9}
     pull_policy: build
     hostname: srv-linux-01
+    # Active response on 100101 (docs/response.md): firewall-drop changes iptables in THIS
+    # container's network namespace only. The other simulated hosts are never targeted.
+    cap_add: [NET_ADMIN]
     environment:
       - WAZUH_MANAGER=wazuh.manager
       - AGENT_NAME=srv-linux-01
@@ -272,8 +295,9 @@ services:
         agent: service:srv-linux-01
     image: insurance-soc-lab/real-linux:${WAZUH_VERSION:-4.14.9}
     hostname: real-linux-01
-    # auditd needs the audit subsystem; refused by some Docker hosts (start.sh then warns)
-    cap_add: [AUDIT_CONTROL, AUDIT_READ]
+    # auditd needs the audit subsystem; refused by some Docker hosts (start.sh then warns).
+    # NET_ADMIN: active response on 100101 blocks the source in this container's iptables.
+    cap_add: [AUDIT_CONTROL, AUDIT_READ, NET_ADMIN]
     environment:
       - WAZUH_MANAGER=wazuh.manager
       - AGENT_NAME=real-linux-01
@@ -353,6 +377,7 @@ networks:
 
 volumes:
   real-secrets:
+  webhook-messages:
   insurco-logs:
   wazuh_api_configuration:
   wazuh_etc:

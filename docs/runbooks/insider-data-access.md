@@ -1,6 +1,7 @@
-# Runbook - Mass customer data access (rules 100131, 100132, 100133)
+# Runbook - Mass customer data access (rules 100131-100134, 100137, 100138)
 
-**Severity:** 100131 low (7) · 100132 high (12) · 100133 critical (13)
+**Severity:** 100131 / 100137 low (7) · 100132 high (12) · 100133 / 100138 critical (13) · 100134 critical (14)
+(100137 / 100138 are the same detections on the real PostgreSQL audit trail, `data.db_user` etc. are the same fields)
 **MITRE:** T1213 Data from Information Repositories, T1530, T1078
 **Why it matters at an insurer:** one export of the `clients` or `claims`
 tables is enough for identity theft, organised insurance fraud or resale to a

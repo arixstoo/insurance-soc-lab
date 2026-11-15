@@ -17,31 +17,31 @@ The tables marked *generated* are produced from the XML by `python scripts/gen_c
 <!-- BEGIN GENERATED: rules (scripts/gen_catalog.py - do not edit by hand) -->
 | ID | Level | Detection | Built on | Correlation / conditions | MITRE ATT&CK | Groups |
 |---|---|---|---|---|---|---|
-| 100100 | 10 | SSH brute force: 6 failed logins from $(srcip) in 2 minutes | after 5760 | 6 in 120 s; same `srcip`; then quiet 60 s | T1110.001 Password Guessing | `insurco_auth`, `brute_force` |
-| 100101 | 14 | CRITICAL: successful SSH login from $(srcip) right after a brute force | 5715, after 100100 | within 300 s; same `srcip` | T1110.001 Password Guessing<br>T1078 Valid Accounts | `insurco_auth`, `account_compromise` |
-| 100102 | 8 | SSH login outside office hours by $(dstuser) from outside the internal network ($(srcip)) | 5715 | only 10 pm - 6 am | T1078 Valid Accounts | `insurco_auth`, `after_hours` |
-| 100103 | 10 | SSH login to privileged account $(dstuser) outside office hours from $(srcip) | 5715 | only 10 pm - 6 am | T1078.003 Valid Accounts: Local Accounts | `insurco_auth`, `after_hours`, `privileged_account` |
-| 100110 | 12 | Suspicious sudo command (root shell or credential file change) by $(srcuser) | 5402, 5403 | - | T1548.003 Sudo and Sudo Caching | `insurco_privesc`, `privilege_escalation` |
-| 100120 | 11 | SQL injection attempt on a business web app from $(srcip) | 31103, 31164, 31170, 31171 | not in list `scanner-ips` (srcip) | T1190 Exploit Public-Facing Application | `insurco_web`, `web_attack`, `sqli` |
-| 100121 | 10 | Cross-site scripting attempt on a business web app from $(srcip) | 31105 | not in list `scanner-ips` (srcip) | T1190 Exploit Public-Facing Application | `insurco_web`, `web_attack`, `xss` |
-| 100122 | 10 | Path traversal attempt from $(srcip) | 31104 | not in list `scanner-ips` (srcip) | T1190 Exploit Public-Facing Application<br>T1083 File and Directory Discovery | `insurco_web`, `web_attack`, `path_traversal` |
-| 100123 | 8 | Probe for secrets or backup files from $(srcip) | 31100, 31101, 31108 | not in list `scanner-ips` (srcip) | T1595.003 Wordlist Scanning | `insurco_web`, `web_scan` |
-| 100129 | 13 | Coordinated web attack campaign from $(srcip) | after group `insurco_web` | 5 in 300 s; same `srcip`; then quiet 120 s | T1190 Exploit Public-Facing Application | `insurco_web`, `coordinated_attack` |
+| 100100 | 10 | [SSH brute force: 6 failed logins from $(srcip) in 2 minutes](runbooks/ssh-brute-force.md) | after 5760 | 6 in 120 s; same `srcip`; then quiet 60 s | T1110.001 Password Guessing | `insurco_auth`, `brute_force` |
+| 100101 | 14 | [CRITICAL: successful SSH login from $(srcip) right after a brute force](runbooks/ssh-brute-force.md) | 5715, after 100100 | within 300 s; same `srcip` | T1110.001 Password Guessing<br>T1078 Valid Accounts | `insurco_auth`, `account_compromise` |
+| 100102 | 8 | [SSH login outside office hours by $(dstuser) from outside the internal network ($(srcip))](runbooks/ssh-brute-force.md) | 5715 | only 10 pm - 6 am | T1078 Valid Accounts | `insurco_auth`, `after_hours` |
+| 100103 | 10 | [SSH login to privileged account $(dstuser) outside office hours from $(srcip)](runbooks/ssh-brute-force.md) | 5715 | only 10 pm - 6 am | T1078.003 Valid Accounts: Local Accounts | `insurco_auth`, `after_hours`, `privileged_account` |
+| 100110 | 12 | [Suspicious sudo command (root shell or credential file change) by $(srcuser)](runbooks/privilege-escalation.md) | 5402, 5403 | - | T1548.003 Sudo and Sudo Caching | `insurco_privesc`, `privilege_escalation` |
+| 100120 | 11 | [SQL injection attempt on a business web app from $(srcip)](runbooks/web-attack-campaign.md) | 31103, 31164, 31170, 31171 | not in list `scanner-ips` (srcip) | T1190 Exploit Public-Facing Application | `insurco_web`, `web_attack`, `sqli` |
+| 100121 | 10 | [Cross-site scripting attempt on a business web app from $(srcip)](runbooks/web-attack-campaign.md) | 31105 | not in list `scanner-ips` (srcip) | T1190 Exploit Public-Facing Application | `insurco_web`, `web_attack`, `xss` |
+| 100122 | 10 | [Path traversal attempt from $(srcip)](runbooks/web-attack-campaign.md) | 31104 | not in list `scanner-ips` (srcip) | T1190 Exploit Public-Facing Application<br>T1083 File and Directory Discovery | `insurco_web`, `web_attack`, `path_traversal` |
+| 100123 | 8 | [Probe for secrets or backup files from $(srcip)](runbooks/web-attack-campaign.md) | 31100, 31101, 31108 | not in list `scanner-ips` (srcip) | T1595.003 Wordlist Scanning | `insurco_web`, `web_scan` |
+| 100129 | 13 | [Coordinated web attack campaign from $(srcip)](runbooks/web-attack-campaign.md) | after group `insurco_web` | 5 in 300 s; same `srcip`; then quiet 120 s | T1190 Exploit Public-Facing Application | `insurco_web`, `coordinated_attack` |
 | 100130 | 0 | Database audit event | decoder `insurco-db-audit` | - | - | `insurco_db` |
-| 100131 | 7 | Bulk read of sensitive table $(table) by $(db_user) | 100130, 100136 | not in list `db-service-accounts` (db_user) | T1213 Data from Information Repositories | `insurco_db`, `insurco_bulk_read`, `data_access` |
+| 100131 | 7 | [Bulk read of sensitive table $(table) by $(db_user)](runbooks/insider-data-access.md) | 100130, 100136 | not in list `db-service-accounts` (db_user) | T1213 Data from Information Repositories | `insurco_db`, `insurco_bulk_read`, `data_access` |
 | 100135 | 0 | PostgreSQL audit event (pgaudit) | decoder `insurco-pgaudit` | - | - | `insurco_db` |
 | 100136 | 0 | PostgreSQL read (pgaudit) | 100135 | - | - | `insurco_db` |
-| 100137 | 7 | Bulk read of sensitive table $(table) by $(db_user) (PostgreSQL audit) | 100136 | not in list `db-service-accounts` (db_user) | T1213 Data from Information Repositories | `insurco_db`, `insurco_bulk_read`, `data_access` |
-| 100138 | 13 | Bulk customer data read OUTSIDE office hours by $(db_user) (PostgreSQL audit) | 100137 | only 10 pm - 6 am | T1213 Data from Information Repositories<br>T1078 Valid Accounts | `insurco_db`, `insurco_bulk_read`, `insider_threat`, `after_hours` |
-| 100132 | 12 | Mass customer data access by $(db_user): possible insider fraud | after group `insurco_bulk_read` | 5 in 300 s; same `db_user`; then quiet 300 s | T1213 Data from Information Repositories<br>T1530 Data from Cloud Storage | `insurco_db`, `insider_threat` |
-| 100133 | 13 | Bulk customer data read OUTSIDE office hours by $(db_user) | 100131 | only 10 pm - 6 am | T1213 Data from Information Repositories<br>T1078 Valid Accounts | `insurco_db`, `insurco_bulk_read`, `insider_threat`, `after_hours` |
-| 100134 | 14 | Mass customer data access OUTSIDE office hours by $(db_user): possible insider fraud | 100133, 100138, after group `insurco_bulk_read` | 5 in 300 s; same `db_user`; then quiet 300 s | T1213 Data from Information Repositories<br>T1530 Data from Cloud Storage<br>T1078 Valid Accounts | `insurco_db`, `insider_threat`, `after_hours` |
+| 100137 | 7 | [Bulk read of sensitive table $(table) by $(db_user) (PostgreSQL audit)](runbooks/insider-data-access.md) | 100136 | not in list `db-service-accounts` (db_user) | T1213 Data from Information Repositories | `insurco_db`, `insurco_bulk_read`, `data_access` |
+| 100138 | 13 | [Bulk customer data read OUTSIDE office hours by $(db_user) (PostgreSQL audit)](runbooks/insider-data-access.md) | 100137 | only 10 pm - 6 am | T1213 Data from Information Repositories<br>T1078 Valid Accounts | `insurco_db`, `insurco_bulk_read`, `insider_threat`, `after_hours` |
+| 100132 | 12 | [Mass customer data access by $(db_user): possible insider fraud](runbooks/insider-data-access.md) | after group `insurco_bulk_read` | 5 in 300 s; same `db_user`; then quiet 300 s | T1213 Data from Information Repositories<br>T1530 Data from Cloud Storage | `insurco_db`, `insider_threat` |
+| 100133 | 13 | [Bulk customer data read OUTSIDE office hours by $(db_user)](runbooks/insider-data-access.md) | 100131 | only 10 pm - 6 am | T1213 Data from Information Repositories<br>T1078 Valid Accounts | `insurco_db`, `insurco_bulk_read`, `insider_threat`, `after_hours` |
+| 100134 | 14 | [Mass customer data access OUTSIDE office hours by $(db_user): possible insider fraud](runbooks/insider-data-access.md) | 100133, 100138, after group `insurco_bulk_read` | 5 in 300 s; same `db_user`; then quiet 300 s | T1213 Data from Information Repositories<br>T1530 Data from Cloud Storage<br>T1078 Valid Accounts | `insurco_db`, `insider_threat`, `after_hours` |
 | 100140 | 0 | Windows security event | decoder `insurco-winsec` | - | - | `insurco_windows` |
-| 100141 | 2 | Windows logon failure for $(TargetUserName) | 100140 | - | - | `insurco_windows`, `authentication_failed` |
-| 100142 | 10 | Windows password guessing from $(IpAddress) | after 100141 | 8 in 120 s; same `IpAddress`; then quiet 60 s | T1110 Brute Force | `insurco_windows`, `brute_force` |
-| 100143 | 8 | New user account $(TargetUserName) created by $(SubjectUserName) | 100140 | - | T1136.001 Create Account: Local Account | `insurco_windows`, `account_management` |
-| 100144 | 13 | CRITICAL: $(MemberName) added to $(GroupName) | 100140 | - | T1098 Account Manipulation | `insurco_windows`, `privilege_escalation` |
-| 100145 | 15 | CRITICAL: account $(account) created and added to $(GroupName) within 10 minutes | 100144, after 100143 | within 600 s; same `account` | T1136.001 Create Account: Local Account<br>T1098 Account Manipulation | `insurco_windows`, `privilege_escalation`, `account_compromise` |
+| 100141 | 2 | [Windows logon failure for $(TargetUserName)](runbooks/windows-password-guessing.md) | 100140 | - | - | `insurco_windows`, `authentication_failed` |
+| 100142 | 10 | [Windows password guessing from $(IpAddress)](runbooks/windows-password-guessing.md) | after 100141 | 8 in 120 s; same `IpAddress`; then quiet 60 s | T1110 Brute Force | `insurco_windows`, `brute_force` |
+| 100143 | 8 | [New user account $(TargetUserName) created by $(SubjectUserName)](runbooks/privilege-escalation.md) | 100140 | - | T1136.001 Create Account: Local Account | `insurco_windows`, `account_management` |
+| 100144 | 13 | [CRITICAL: $(MemberName) added to $(GroupName)](runbooks/privilege-escalation.md) | 100140 | - | T1098 Account Manipulation | `insurco_windows`, `privilege_escalation` |
+| 100145 | 15 | [CRITICAL: account $(account) created and added to $(GroupName) within 10 minutes](runbooks/privilege-escalation.md) | 100144, after 100143 | within 600 s; same `account` | T1136.001 Create Account: Local Account<br>T1098 Account Manipulation | `insurco_windows`, `privilege_escalation`, `account_compromise` |
 <!-- END GENERATED: rules -->
 
 ## Allow-lists (generated)
@@ -194,7 +194,14 @@ Not detected yet - each one is a roadmap item or an accepted trade-off:
   or user. A brute force from another IP within 60 s of a first one raises no 100100 (and so
   no 100101); likewise 120 s for 100129 and 300 s for 100132 / 100134. The underlying
   per-event alerts (5760, 100120-100123, 100131 / 100137) still fire. Mitigation to study:
-  shorter `ignore` values, measured against the noise budget.
+  shorter `ignore` values, measured against the noise budget. Since phase 6 this also means
+  **no active response** for the second attacker (the block hangs on 100101); found again by
+  `scripts/check_response.py`, where a random simulated brute force muted the real one. The
+  built-in 40112 (level 12, failures then a success) still fires and reaches the webhook
+  ([response.md](response.md)).
+- **Active response trusts the log.** firewall-drop blocks the `srcip` decoded from the
+  sshd line. Lab only, on 100101 only, 10 minutes, on the targeted host only; in production
+  add jump hosts, monitoring and partner ranges to the manager's `<white_list>`.
 - **A burst of exactly N events within milliseconds** (phase 4, GitHub Actions): five bulk
   reads ~40 ms apart once raised five 100137 and no 100132 - likely analysisd matching on
   several threads. A scripted export that fast may evade the correlation; each read still

@@ -26,8 +26,8 @@ honesty and documentation matter as much as features.
 
 | Task | Command |
 |---|---|
-| Lint | `ruff check simulator detection/tests scripts real` |
-| Unit tests | `cd simulator && python -m pytest -q` + `python -m pytest -q detection/tests` (rule coverage, catalog) |
+| Lint | `ruff check simulator detection/tests scripts real response` |
+| Unit tests | `cd simulator && python -m pytest -q` + `python -m pytest -q detection/tests` (rule coverage, catalog, runbook links) + `python -m pytest -q response/tests` (integration, receiver, response config) |
 | Detection tests | `python detection/tests/run_tests.py` (`-k <regex>` to filter) |
 | Detection catalog | `python scripts/gen_catalog.py` (CI: `--check`) - never edit the generated tables by hand |
 | MITRE layer | `python scripts/gen_mitre_layer.py` (CI: `--check`) -> `docs/mitre-layer.json` |
@@ -39,6 +39,7 @@ honesty and documentation matter as much as features.
 | Lab health | `python scripts/lab_status.py` |
 | Trigger a scenario | `docker compose exec simulator insurco-sim inject <name>` |
 | E2E check (running lab) | `bash scripts/e2e.sh` (CI: `e2e.yml`, manager clock pinned to midday) |
+| Response check (running lab) | `python scripts/check_response.py [--target both] [--no-expiry]` (`make response`): 100101 -> webhook -> 10 min block -> expiry · alerts on <http://localhost:8088> |
 | Measure | `docker compose exec simulator insurco-sim stats` · `python scripts/measure_latency.py` |
 | Real services (profile `real`) | `make up REAL=1` · `make traffic` (= `docker compose --profile real exec real-client lab-traffic all`) · `docs/real-services.md` |
 | Stop / wipe | `make down` / `make reset` (include the `real` profile) |
@@ -80,6 +81,17 @@ honesty and documentation matter as much as features.
 - Correlation windows use a cached `time(NULL)` refreshed every second
   (`w_get_current_time`); `<time>` uses the wall clock. Time-dependent tests (`at:`) and the
   noise replay use `detection/replay/` (clockshim) to move both.
+- Every alerting rule (level >= 3) needs `<info type="link">` to its runbook
+  (`docs/runbooks/`, GitHub URL): `gen_catalog.py --check` fails otherwise. Wazuh copies it
+  into the alert as `rule.info`, so the webhook message carries it.
+- Integrations: `wazuh-integratord` runs `integrations/custom-<name>` with
+  `<alert file> <api_key> <hook_url>`; the script is copied in through
+  `/wazuh-config-mount/integrations/` (keep the git exec bit, LF). Bundled Python is 3.10.
+- Active response `firewall-drop` needs `iptables` in the agent image and `NET_ADMIN` on the
+  container; `location local` = the agent that raised the alert. Its `check_keys` exchange
+  aborts a duplicate block. A block on real-linux-01 cuts `real-client` off sshd for 10 min.
+- Random simulator attacks can open 100100's `ignore` window at any time: any live check of
+  a brute force needs `SIM_ATTACK_MIN/MAX=86400` (as `e2e.yml`).
 - Dashboards: a saved `heatmap` vis needs its full `params` (`valueAxes`...): the editor merges
   no defaults. The `range` agg with custom `label`s returns HTTP 400 (use `filters`). Panels may
   only filter on `rule.id` / `rule.groups` proven by tests (`test_dashboards.py`).
@@ -107,4 +119,5 @@ honesty and documentation matter as much as features.
 
 `ROADMAP.md` (phases and acceptance criteria) · `docs/architecture.md` ·
 `docs/detection-catalog.md` (tables generated) · `docs/tuning-report.md` · `docs/runbooks/` ·
-`docs/production-integration.md` · `docs/dashboards.md` · `docs/mitre-layer.json`.
+`docs/production-integration.md` · `docs/dashboards.md` · `docs/mitre-layer.json` ·
+`docs/response.md` (alert routing + active response) · `response/` (integration, receiver, tests).

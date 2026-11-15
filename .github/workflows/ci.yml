@@ -20,13 +20,16 @@ jobs:
       - name: Install
         run: pip install -e "simulator[dev]"
       - name: Lint
-        run: ruff check simulator detection/tests scripts real
+        run: ruff check simulator detection/tests scripts real response
       - name: Shell scripts
         run: shellcheck scripts/*.sh agents/entrypoint.sh real/common/*.sh real/*/start.sh real/db/stop.sh
+          response/integrations/custom-insurco-webhook
       - name: Unit tests
         run: pytest simulator -q
       - name: Every rule has a positive and a negative case
         run: pytest detection/tests -q
+      - name: Alert routing and active response (integration, receiver, config)
+        run: pytest response/tests -q
       - name: Detection catalog is up to date with the rules
         run: python scripts/gen_catalog.py --check
       - name: MITRE ATT&CK layer is up to date with the rules

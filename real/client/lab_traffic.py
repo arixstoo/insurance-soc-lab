@@ -83,8 +83,22 @@ def ssh_login(host: str, user: str, password: str) -> bool:
     return result.returncode == 0
 
 
+def sshd_reachable(host: str, timeout: float = 3.0) -> bool:
+    try:
+        socket.create_connection((host, 22), timeout=timeout).close()
+    except OSError:
+        return False
+    return True
+
+
 def job_ssh() -> int:
     host = lab_host("ssh")
+    # The active response on 100101 (docs/response.md) drops this client on real-linux-01 for
+    # 10 minutes after a run that ended in a successful login: say so instead of 8 timeouts.
+    if not sshd_reachable(host):
+        say("ssh", f"{host}:22 unreachable: this client is probably still blocked by the active response "
+                   "on 100101 (10 minutes after the last run, docs/response.md); not sending")
+        return 1
     password = secret("ssh-test")
     ok = ssh_login(host, "lab.ops", password)
     say("ssh", f"normal login lab.ops: {'accepted' if ok else 'REFUSED'}")

@@ -37,6 +37,16 @@ Full catalog with false positives and coverage gaps: [docs/detection-catalog.md]
 (tables generated from the XML). Noise budget: 24 h of normal activity, replayed through the
 real engine, gives 3 custom alerts - [docs/tuning-report.md](docs/tuning-report.md).
 
+## Response
+
+Every rule links its **runbook** ([docs/runbooks/](docs/runbooks/README.md)); every alert of
+level 12+ is **posted to a webhook** by a custom Wazuh integration, and the lab's own
+`webhook-receiver` shows them offline on <http://localhost:8088>; a brute force that
+succeeds (100101) **blocks the source IP on the targeted host for 10 minutes** (Wazuh active
+response, lab only), then lifts the block by itself. Flow, sequence diagram and safety
+limits: [docs/response.md](docs/response.md). Proof on a running lab:
+`python scripts/check_response.py` (`make response`).
+
 ## Dashboards
 
 Two dashboards ship as code (`dashboards/*.ndjson`, built through the saved-objects API) and
@@ -72,7 +82,7 @@ git clone https://github.com/arixstoo/insurance-soc-lab.git && cd insurance-soc-
 make certs                 # TLS certificates, once
 make rotate                # REQUIRED: replaces the public Wazuh default passwords (writes .env)
 make up                    # build, start, wait until healthy, 30-day retention, import dashboards
-make status                # agents active, defaults rejected, custom rules fired -> OK
+make status                # agents active, defaults rejected, response chain, custom rules fired -> OK
 ```
 
 On Windows PowerShell, the same verbs: `.\scripts\lab.ps1 certs`, `.\scripts\lab.ps1 rotate`,
@@ -148,10 +158,11 @@ real traffic.
 detection/   rules (XML) + test cases + wazuh-logtest runner
 simulator/   insurco-sim: synthetic telemetry and attack scenarios (Python, tested)
 dashboards/  SOC dashboards as saved-object exports (.ndjson), imported by make up
+response/    alert routing: Wazuh webhook integration + offline webhook receiver (tested)
 agents/      Wazuh agent image, config rendered from a template
 stack/       Wazuh configuration (adapted from wazuh-docker, see NOTICE)
 docs/        architecture, detection catalog, ATT&CK layer, dashboards, runbooks, production plan
-scripts/     lab.ps1, password rotation, retention, dashboards, lab status, e2e check, latency
+scripts/     lab.ps1, password rotation, retention, dashboards, lab status, e2e and response checks, latency
 ```
 
 ## About this public version

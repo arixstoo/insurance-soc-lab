@@ -1,0 +1,6 @@
+#!/bin/sh
+# wazuh-integratord runs integrations/<name> with: <alert file> <api key> <hook url> [debug].
+# Run the Python script of the same name with the manager's bundled interpreter.
+# Copied to /var/ossec/integrations at manager start (docker-compose.yml, /wazuh-config-mount).
+DIR="$(cd "$(dirname "$0")" && pwd -P)"
+exec "${DIR}/../framework/python/bin/python3" "${DIR}/$(basename "$0").py" "$@"

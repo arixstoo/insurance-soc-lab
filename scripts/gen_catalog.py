@@ -10,6 +10,10 @@ false positives, tuning log, gaps) is kept as is.
 
 --check also fails when a rule has no row in the hand-written "Known false
 positives" table, or when that table names a rule that does not exist.
+
+Runbooks: a rule's `<info type="link">` (Wazuh's own element, so the link also travels
+with the alert) points to docs/runbooks/<file>.md on GitHub; the catalog links the
+rule's description to that runbook.
 """
 
 from __future__ import annotations
@@ -26,6 +30,9 @@ ROOT = Path(__file__).resolve().parents[1]
 RULES = ROOT / "detection" / "rules" / "insurco_rules.xml"
 LISTS = ROOT / "detection" / "lists"
 CATALOG = ROOT / "docs" / "detection-catalog.md"
+RUNBOOKS = ROOT / "docs" / "runbooks"
+# Absolute, so the link still works in an alert, a webhook message or a ticket
+RUNBOOK_BASE = "https://github.com/arixstoo/insurance-soc-lab/blob/main/docs/runbooks/"
 
 # ATT&CK names for the ids used by the rules (display only; an unknown id shows bare).
 MITRE = {
@@ -59,6 +66,12 @@ class Rule:
     built_on: list[str] = field(default_factory=list)
     correlation: list[str] = field(default_factory=list)
     lists: list[tuple[str, str, str]] = field(default_factory=list)  # (field, lookup, list name)
+    links: list[str] = field(default_factory=list)  # <info type="link"> values
+
+    @property
+    def runbook(self) -> str | None:
+        """File name of the runbook in docs/runbooks/, or None if the rule links none."""
+        return next((link.removeprefix(RUNBOOK_BASE) for link in self.links if link.startswith(RUNBOOK_BASE)), None)
 
 
 def _text(node: ET.Element, tag: str) -> str | None:
@@ -76,6 +89,7 @@ def parse_rules(path: Path = RULES) -> list[Rule]:
             description=re.sub(r"^InsurCo - ", "", _text(node, "description") or ""),
             groups=[g.strip() for g in groups],
             mitre=[el.text.strip() for el in node.findall("mitre/id")],
+            links=[el.text.strip() for el in node.findall("info") if el.get("type") == "link" and el.text],
         )
         for tag, label in (("if_sid", "{}"), ("if_matched_sid", "after {}"), ("if_group", "group `{}`"),
                            ("if_matched_group", "after group `{}`"), ("decoded_as", "decoder `{}`")):
@@ -105,6 +119,11 @@ def _cell(text: str) -> str:
     return text.replace("|", "\\|")
 
 
+def detection_cell(rule: Rule) -> str:
+    text = _cell(rule.description)
+    return f"[{text}](runbooks/{rule.runbook})" if rule.runbook else text
+
+
 def mitre_cell(ids: list[str]) -> str:
     return "<br>".join(f"{i} {MITRE[i]}" if i in MITRE else i for i in ids) or "-"
 
@@ -117,7 +136,7 @@ def rules_table(rules: list[Rule]) -> str:
         conditions += [f"{'not in' if lk.startswith('not_') else 'in'} list `{name}` ({fld})"
                        for fld, lk, name in r.lists]
         rows.append("| " + " | ".join([
-            r.id, str(r.level), _cell(r.description), _cell(", ".join(r.built_on) or "-"),
+            r.id, str(r.level), detection_cell(r), _cell(", ".join(r.built_on) or "-"),
             _cell("; ".join(conditions) or "-"), mitre_cell(r.mitre),
             ", ".join(f"`{g}`" for g in r.groups),
         ]) + " |")
@@ -175,6 +194,17 @@ def false_positive_ids(text: str) -> list[str]:
     return re.findall(r"^\| (\d{6}) \|", match.group(1), re.MULTILINE) if match else []
 
 
+def runbook_problems(rules: list[Rule], runbooks: Path = RUNBOOKS) -> list[str]:
+    """Every alerting rule (level >= 3) links a runbook, and every linked runbook exists."""
+    problems = []
+    for r in rules:
+        if r.runbook is None and r.level >= 3:
+            problems.append(f"rule {r.id} (level {r.level}) has no <info type=\"link\"> to {RUNBOOK_BASE}...")
+        elif r.runbook is not None and not (runbooks / r.runbook).is_file():
+            problems.append(f"rule {r.id} links a missing runbook: docs/runbooks/{r.runbook}")
+    return problems
+
+
 def render(text: str, rules: list[Rule]) -> str:
     return replace_generated(text, {
         "summary": summary(rules),
@@ -198,6 +228,7 @@ def main(argv: list[str] | None = None) -> int:
     fp_ids = false_positive_ids(updated)
     problems = [f"rule {i} has no row in 'Known false positives'" for i in ids if i not in fp_ids]
     problems += [f"'Known false positives' lists unknown rule {i}" for i in fp_ids if i not in ids]
+    problems += runbook_problems(rules)
 
     if args.check:
         if updated != current:

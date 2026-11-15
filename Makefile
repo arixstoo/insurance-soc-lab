@@ -4,7 +4,7 @@ COMPOSE := docker compose $(if $(REAL),--profile real)
 # down / reset also stop the real hosts (compose profile `real`) when they run
 COMPOSE_ALL := docker compose --profile real
 
-.PHONY: help certs rotate up down reset status traffic test unit detection catalog mitre dashboards noise lint
+.PHONY: help certs rotate up down reset status traffic response test unit detection catalog mitre dashboards noise lint
 
 help:           ## list the targets
 	@grep -E '^[a-z]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  make %-8s %s\n", $$1, $$2}'
@@ -35,11 +35,15 @@ status:         ## containers, agents, passwords, retention, custom rules fired
 traffic:        ## real hosts (make up REAL=1): scripted test traffic from the lab test client
 	$(COMPOSE_ALL) exec real-client lab-traffic all
 
+response:       ## brute force -> alert -> webhook -> 10 min block -> expiry (~11 min; REAL=1: real host too)
+	$(PYTHON) scripts/check_response.py --target $(if $(REAL),both,simulated)
+
 test: unit detection  ## unit tests + detection tests against the real engine
 
-unit:           ## simulator + static detection checks (coverage, catalog), no Docker
+unit:           ## simulator + static detection and response checks (coverage, catalog, config), no Docker
 	cd simulator && $(PYTHON) -m pytest -q
 	$(PYTHON) -m pytest -q detection/tests
+	$(PYTHON) -m pytest -q response/tests
 	$(PYTHON) scripts/gen_catalog.py --check
 	$(PYTHON) scripts/gen_mitre_layer.py --check
 
@@ -59,4 +63,4 @@ noise:          ## 24 h of background traffic through the real engine -> docs/tu
 	$(PYTHON) scripts/noise_report.py
 
 lint:           ## ruff
-	ruff check simulator detection/tests scripts real
+	ruff check simulator detection/tests scripts real response

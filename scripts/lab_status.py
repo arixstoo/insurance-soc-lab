@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Health check of the running lab: containers, agents, credentials, retention, custom rules fired.
+"""Health check of the running lab: containers, agents, credentials, retention, response, custom rules fired.
 
     python scripts/lab_status.py
 """
@@ -10,6 +10,7 @@ import json
 import os
 import subprocess
 import sys
+import urllib.request
 from collections import Counter
 
 from indexer_client import indexer_password, request
@@ -31,6 +32,7 @@ DEFAULT_INDEXER_LOGINS = {
     "snapshotrestore": "snapshotrestore",
 }
 DEFAULT_API_LOGIN = ("wazuh-wui", "MyS3cr37P450r.*-")
+WEBHOOK_HEALTH = os.environ.get("WEBHOOK_VIEW_URL", "http://127.0.0.1:8088") + "/healthz"
 
 
 def sh(*args: str) -> str:
@@ -95,6 +97,30 @@ def check_retention() -> bool:
     return False
 
 
+def check_response() -> bool:
+    """Alert routing + active response (docs/response.md): receiver up, daemons running, config loaded."""
+    print("\n== response (webhook + active response) ==")
+    try:
+        with urllib.request.urlopen(WEBHOOK_HEALTH, timeout=5) as resp:
+            stored = json.load(resp).get("messages", 0)
+        receiver = True
+        print(f"  webhook-receiver   up ({stored} messages, http://localhost:8088)")
+    except OSError as exc:
+        receiver = False
+        print(f"  webhook-receiver   NOT REACHABLE ({exc})")
+    status = sh("docker", "exec", MANAGER, "/var/ossec/bin/wazuh-control", "status")
+    log = sh("docker", "exec", MANAGER, "sh", "-c",
+             "grep -E 'Enabling integration for|white list for active response' /var/ossec/logs/ossec.log | tail -n 5")
+    checks = {
+        "integratord": "wazuh-integratord is running" in status,
+        "integration enabled": "Enabling integration for: 'custom-insurco-webhook'" in log,
+        "execd": "wazuh-execd is running" in status,
+    }
+    for name, good in checks.items():
+        print(f"  {name:18} {'ok' if good else 'MISSING'}")
+    return receiver and all(checks.values())
+
+
 def check_rules() -> bool:
     print("\n== custom rules fired (alerts.json) ==")
     raw = sh("docker", "exec", MANAGER, "sh", "-c", "grep '\"id\":\"1001' /var/ossec/logs/alerts/alerts.json || true")
@@ -118,7 +144,7 @@ def check_rules() -> bool:
 def main() -> int:
     print("== containers ==")
     print(sh("docker", "compose", "--profile", "real", "ps", "--format", "table {{.Service}}\t{{.Status}}"))
-    results = [check_agents(), check_credentials(), check_retention(), check_rules()]
+    results = [check_agents(), check_credentials(), check_retention(), check_response(), check_rules()]
     ok = all(results)
     print("\nOK" if ok else "\nNOT READY (see above)")
     return 0 if ok else 1
