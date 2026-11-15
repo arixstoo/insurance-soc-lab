@@ -40,6 +40,8 @@ RULES = ROOT / "detection" / "rules" / "insurco_rules.xml"
 DECODERS = ROOT / "detection" / "decoders" / "0005-insurco_decoders.xml"
 LISTS = ROOT / "detection" / "lists"
 MANAGER_CONF = ROOT / "stack" / "config" / "wazuh_cluster" / "wazuh_manager.conf"
+INTEGRATIONS = ROOT / "response" / "integrations"
+INTEGRATION_FILES = ("custom-insurco-webhook", "custom-insurco-webhook.py")
 REPLAY_DIR = ROOT / "detection" / "replay"
 CASES = ROOT / "detection" / "tests" / "cases.yaml"
 WAZUH_VERSION = os.environ.get("WAZUH_VERSION", "4.14.9")
@@ -137,6 +139,10 @@ def lab_mounts(lists: Path = LISTS) -> list[str]:
         "-v", f"{lists}:/wazuh-config-mount/etc/lists/insurco:ro",
         "-v", f"{DECODERS}:/var/ossec/etc/decoders/{DECODERS.name}:ro",
         "-v", f"{RULES}:/var/ossec/etc/rules/insurco_rules.xml:ro",
+        # The config enables the webhook integration: without its script integratord logs an
+        # ERROR naming it, which the readiness check below takes for a rejected configuration.
+        *[arg for name in INTEGRATION_FILES
+          for arg in ("-v", f"{INTEGRATIONS / name}:/wazuh-config-mount/integrations/{name}:ro")],
     ]
 
 
