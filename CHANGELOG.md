@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased] - Response: runbooks, alert routing, active response (phase 6)
+## [0.7.0] - 2026-11-15 - Response: runbooks, alert routing, active response
 
 ### Added
 - **Runbooks** for every alert family, same template as `insider-data-access.md`:
@@ -53,6 +53,12 @@
   random attacks (`SIM_ATTACK_MIN/MAX=86400`), as e2e does. Coverage gap updated in the catalog.
 - The real SSH traffic also raises the stock rule 40112 (level 12, failures then a success),
   which is routed to the webhook too (no runbook link: not one of our rules).
+
+### Verified
+- e2e on the release branch (GitHub runner, profile `real`, 20 min): 22/22 expected rules,
+  then the response chain on both SSH hosts - webhook message with runbook, iptables DROP,
+  the real client's TCP to sshd timing out, both blocks held 601 s (configured 600 s) and
+  removed, sshd reachable again.
 
 ## [0.6.0] - 2026-11-13 - SOC dashboards as code, MITRE layer
 

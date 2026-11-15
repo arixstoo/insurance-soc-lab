@@ -12,7 +12,7 @@ Status: ✅ done · 🔨 in progress · ⬜ planned
 | 3 | Detection engineering v2 | `v0.4.0` | ✅ |
 | 4 | Real services, real attacks in the lab | `v0.5.0` | ✅ |
 | 5 | SOC dashboards as code + MITRE layer | `v0.6.0` | ✅ |
-| 6 | Response: runbooks, alerting, active response | `v0.7.0` | 🔨 |
+| 6 | Response: runbooks, alerting, active response | `v0.7.0` | ✅ |
 | 7 | Portability: Sigma rules + threat intel | `v0.8.0` | ⬜ |
 | 8 | Publication: docs, demo, v1.0 | `v1.0.0` | ⬜ |
 
@@ -148,7 +148,7 @@ scenario's expected rules in alerts within 10 minutes.
 **Done when:** after `make reset`, both dashboards show data with no manual click.
 **Content:** Instagram carousel - "what an analyst sees in the first 30 seconds".
 
-## Phase 6 - Response 🔨
+## Phase 6 - Response ✅
 
 **Goal:** an alert becomes an action: a runbook, a message, a timed block
 ([docs/response.md](docs/response.md)).
@@ -166,7 +166,7 @@ scenario's expected rules in alerts within 10 minutes.
       SSH hosts only. Proven live by `scripts/check_response.py` (simulated and real host:
       the real client's TCP connections to sshd time out, then work again)
 - [x] Response flow documented with a mermaid sequence diagram
-- [ ] Release `v0.7.0` (CI and e2e green, lab restarted from a clean state)
+- [x] Release `v0.7.0` (CI and e2e green, lab restarted from a clean state)
 - [ ] Optional: Shuffle SOAR workflow (enrich IP -> open ticket -> notify)
 
 **Done when:** injecting `brute_force` produces the alert, the webhook message and the
