@@ -1,5 +1,49 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+- **Documentation site** (MkDocs Material) built from `docs/`: `mkdocs.yml` (strict), a home
+  page, and a build hook (`scripts/mkdocs_hooks.py`) that sends links to repository files
+  outside `docs/` to GitHub, so the same Markdown works on GitHub and on the site. Workflow
+  `docs.yml`: strict build on pull requests, deploy to GitHub Pages from `main`.
+  `requirements-docs.txt` (Dependabot watches it). `test_docs_site.py`: every docs page is in
+  the nav, and the hook's link rules.
+- `docs/lessons-learned.md`: what each phase taught, from the findings recorded in this
+  changelog (engine semantics, time, noise, e2e flakes, scoped response, Sigma limits).
+- README demo GIF (`docs/img/demo.gif`): a recorded `make up` + `make status`, then both
+  dashboards, rendered by `scripts/make_demo_gif.py` from the transcripts (long build logs
+  shortened and marked as such). Social preview `docs/img/social-preview.png` (1280x640) by
+  `scripts/make_social_preview.py`, figures counted from the repository.
+
+### Changed
+- README v1.0 pass: one-paragraph pitch with current figures (30 rules, 98 cases, 13 Sigma
+  rules), quick start first with the host requirements (Python 3.10+ standard library,
+  `make`), demo GIF, security and docs badges, architecture with the real profile, threat
+  intel and response, "What I learned". The internship statement is unchanged.
+- Dashboard screenshots retaken with all 7 scenarios injected (threat intel included).
+- `docs/README.fr.md` and `CONTRIBUTING.md` brought up to phase 7 (they still said 16 rules,
+  and CONTRIBUTING had the phase 0 lint and test commands).
+- Stale statements fixed: the architecture measurement row (phase 2 counts, now dated),
+  the dashboards' level 12 threshold (implemented in phase 6, was "planned"), the tuning
+  report's limits. The 24 h noise replay was rerun with the phase 4-7 rules: still 3.
+
+### Fixed
+- **`make up` failed on Python 3.13+** (found on Kali, Python 3.13.9): Python's default
+  `VERIFY_X509_STRICT` rejects the CA of the Wazuh certificate tool (no keyUsage
+  extension), so `apply_ism.py` stopped with `CERTIFICATE_VERIFY_FAILED` and `make status`
+  said `NOT READY`. CI runs 3.12 and never saw it. `indexer_client.lab_context()` drops only
+  that flag; chain, expiry and host name are still verified. Unit test added.
+- Webhook receiver: replies to rejected requests (405 / 404) were sent without reading the
+  request body; closing the socket with unread data sent a TCP reset and the client could
+  lose the reply (`test_viewer_is_read_only_and_ingest_has_no_ui` failed about 1 run in 3 on
+  Windows). Small bodies are drained, larger ones close the connection.
+- `response/tests/test_receiver.py` used `10.0.0.1`, outside the allowed lab and
+  documentation ranges.
+
+### Removed
+- Dead code found in the review: `Target.notes` in `check_response.py`, an unused fixture.
+
 ## [0.8.0] - 2026-11-16 - Portability: Sigma rules, threat intel
 
 ### Added
