@@ -38,7 +38,7 @@
   request body; closing the socket with unread data sent a TCP reset and the client could
   lose the reply (`test_viewer_is_read_only_and_ingest_has_no_ui` failed about 1 run in 3 on
   Windows). Small bodies are drained, larger ones close the connection.
-- `response/tests/test_receiver.py` used `10.0.0.1`, outside the allowed lab and
+- `response/tests/test_receiver.py` used a private address outside the allowed lab and
   documentation ranges.
 
 ### Removed
