@@ -59,6 +59,18 @@ class _Connection(http.client.HTTPSConnection):
         self.sock = self._lab_context.wrap_socket(sock, server_hostname=self._tls_name)
 
 
+def lab_context() -> ssl.SSLContext:
+    """TLS context that trusts the lab CA only.
+
+    The CA made by the Wazuh certificate tool has no keyUsage extension, which Python 3.13+
+    rejects by default (VERIFY_X509_STRICT: "CA cert does not include key usage extension").
+    Only that flag is dropped: the chain, the expiry and the host name are still verified.
+    """
+    context = ssl.create_default_context(cafile=str(CA_FILE))
+    context.verify_flags &= ~getattr(ssl, "VERIFY_X509_STRICT", 0)
+    return context
+
+
 def _send(
     target: tuple[str, int, str],
     method: str,
@@ -69,8 +81,7 @@ def _send(
     headers: dict[str, str],
     timeout: float,
 ) -> tuple[int, Any]:
-    context = ssl.create_default_context(cafile=str(CA_FILE))
-    conn = _Connection(*target, context=context, timeout=timeout)
+    conn = _Connection(*target, context=lab_context(), timeout=timeout)
     token = base64.b64encode(f"{user}:{password}".encode()).decode()
     headers = {"Authorization": f"Basic {token}", **headers}
     try:
