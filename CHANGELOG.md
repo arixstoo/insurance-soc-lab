@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [0.8.0] - 2026-11-16 - Portability: Sigma rules, threat intel
 
 ### Added
 - **Sigma rules** (`detection/sigma/rules/`, 13 rules): SSH failed password + brute force
@@ -64,6 +64,15 @@
   writer (`write_scenario`), so both paths use it. 9 simulator tests (gap > poll, order
   4720 -> 4732, pauses between events only, `run` uses the gap, agent templates keep the
   default poll). Simulator 3.1.1.
+
+### Verified
+- CI on the release branch: lint, unit tests, pySigma validators (ATT&CK tags included) and
+  the Sigma / Wazuh agreement checks, detection engine 98/98, image scans.
+- e2e on the release branch (GitHub runner, profile `real`, 20 min): 25/25 expected rules,
+  `known_bad_ip` raising 100151, 100154 and 100150; every family seen on simulated and real
+  hosts; response chain on both SSH hosts (blocks held 601 s, configured 600 s, then removed).
+- Locally: lab restarted from a clean state (`down -v`), 4 agents active, `lab_status.py` OK.
+  Unit tests 87 + 258 (1 skipped) + 29. Noise budget unchanged (3 custom alerts in 24 h).
 
 ## [0.7.0] - 2026-11-15 - Response: runbooks, alert routing, active response
 
