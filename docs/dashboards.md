@@ -59,7 +59,7 @@ query in the `.ndjson` files and fails when:
 | Panel | Query / split |
 |---|---|
 | Alert volume | `*`, `rule.groups:insurco` |
-| Critical alerts | `rule.level >= 12` (the threshold planned for phase 6 routing) |
+| Critical alerts | `rule.level >= 12` (the threshold of the webhook routing, [response.md](response.md)) |
 | Alerts over time by level | bands 0-6, 7-11, 12-14, 15 on `rule.level` |
 | Top source IPs | `rule.level >= 7`, terms on `data.srcip` (SSH, web, DB client; Windows events keep the address in `data.IpAddress`) |
 | Customer data access | `rule.id`: 100131 / 100137 (day), 100133 / 100138 (night) - simulated DB audit / real pgaudit trail; 100132 / 100134 (mass access, both trails) |

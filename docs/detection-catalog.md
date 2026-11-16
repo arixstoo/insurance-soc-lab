@@ -272,7 +272,7 @@ fewer than 20 custom alerts per day of normal activity.
 | 7 | 100154 | New: closes the query-string gap of 100151 (child of 31100, `?` URL, 2xx / 3xx, level 5) | Tested below the attack siblings: XSS / SQLi answered 200 and a 404 from a listed IP keep 100121 / 100120 / 31101 |
 
 Result after phase 3: **3** custom alerts in 24 h (all 100143, onboarding), from 2101
-before the threshold changes. No frequency threshold had to move: the background
+before the threshold changes - still 3 with the rules of phases 4-7 (replay rerun for v1.0.0). No frequency threshold had to move: the background
 stays at half of each correlation threshold or less (headroom table in the report).
 
 ## Decoders
