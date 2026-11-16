@@ -5,7 +5,7 @@
     "navigator": "5.1.0"
   },
   "domain": "enterprise-attack",
-  "description": "12 techniques covered by 20 custom Wazuh rules (insurance-soc-lab). Score = number of rules mapped to the technique; every rule has a positive and a negative test against the real engine. Generated from detection/rules/insurco_rules.xml by scripts/gen_mitre_layer.py - do not edit by hand.",
+  "description": "13 techniques covered by 25 custom Wazuh rules (insurance-soc-lab). Score = number of rules mapped to the technique; every rule has a positive and a negative test against the real engine. Generated from detection/rules/insurco_rules.xml by scripts/gen_mitre_layer.py - do not edit by hand.",
   "sorting": 3,
   "layout": {
     "layout": "side",
@@ -20,9 +20,9 @@
   "techniques": [
     {
       "techniqueID": "T1078",
-      "score": 5,
+      "score": 7,
       "enabled": true,
-      "comment": "Rules: 100101 (level 14), 100102 (level 8), 100138 (level 13), 100133 (level 13), 100134 (level 14)",
+      "comment": "Rules: 100101 (level 14), 100102 (level 8), 100138 (level 13), 100133 (level 13), 100134 (level 14), 100150 (level 12), 100152 (level 15)",
       "metadata": [
         {
           "name": "100101",
@@ -43,6 +43,14 @@
         {
           "name": "100134",
           "value": "level 14 - Mass customer data access OUTSIDE office hours by $(db_user): possible insider fraud"
+        },
+        {
+          "name": "100150",
+          "value": "level 12 - SSH login accepted from known-bad IP $(srcip) (threat intel) for $(dstuser)"
+        },
+        {
+          "name": "100152",
+          "value": "level 15 - CRITICAL: SSH login outside office hours from known-bad IP $(srcip) (threat intel) for $(dstuser)"
         }
       ],
       "showSubtechniques": true
@@ -144,9 +152,9 @@
     },
     {
       "techniqueID": "T1190",
-      "score": 4,
+      "score": 5,
       "enabled": true,
-      "comment": "Rules: 100120 (level 11), 100121 (level 10), 100122 (level 10), 100129 (level 13)",
+      "comment": "Rules: 100120 (level 11), 100121 (level 10), 100122 (level 10), 100129 (level 13), 100153 (level 15)",
       "metadata": [
         {
           "name": "100120",
@@ -163,6 +171,10 @@
         {
           "name": "100129",
           "value": "level 13 - Coordinated web attack campaign from $(srcip)"
+        },
+        {
+          "name": "100153",
+          "value": "level 15 - CRITICAL: coordinated web attack campaign from known-bad IP $(srcip) (threat intel)"
         }
       ],
       "showSubtechniques": false
@@ -237,7 +249,19 @@
     },
     {
       "techniqueID": "T1595",
+      "score": 2,
       "enabled": true,
+      "comment": "Rules: 100151 (level 6), 100154 (level 5)",
+      "metadata": [
+        {
+          "name": "100151",
+          "value": "level 6 - Page view from known-bad IP $(srcip) (threat intel), no attack pattern"
+        },
+        {
+          "name": "100154",
+          "value": "level 5 - Request with a query string from known-bad IP $(srcip) (threat intel), no attack pattern"
+        }
+      ],
       "showSubtechniques": true
     },
     {
@@ -261,7 +285,7 @@
       "#bc4b51"
     ],
     "minValue": 1,
-    "maxValue": 6
+    "maxValue": 7
   },
   "legendItems": [
     {
@@ -269,14 +293,14 @@
       "color": "#fde4c3"
     },
     {
-      "label": "6 rules",
+      "label": "7 rules",
       "color": "#bc4b51"
     }
   ],
   "metadata": [
     {
       "name": "techniques",
-      "value": "T1078 Valid Accounts, T1078.003 Valid Accounts: Local Accounts, T1083 File and Directory Discovery, T1098 Account Manipulation, T1110 Brute Force, T1110.001 Password Guessing, T1136.001 Create Account: Local Account, T1190 Exploit Public-Facing Application, T1213 Data from Information Repositories, T1530 Data from Cloud Storage, T1548.003 Sudo and Sudo Caching, T1595.003 Wordlist Scanning"
+      "value": "T1078 Valid Accounts, T1078.003 Valid Accounts: Local Accounts, T1083 File and Directory Discovery, T1098 Account Manipulation, T1110 Brute Force, T1110.001 Password Guessing, T1136.001 Create Account: Local Account, T1190 Exploit Public-Facing Application, T1213 Data from Information Repositories, T1530 Data from Cloud Storage, T1548.003 Sudo and Sudo Caching, T1595 Active Scanning, T1595.003 Wordlist Scanning"
     }
   ],
   "showTacticRowBackground": false,
