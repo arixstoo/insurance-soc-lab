@@ -32,6 +32,7 @@ honesty and documentation matter as much as features.
 | Python deps (tests) | `pip install -e "simulator[dev]" -r detection/requirements.txt` (pyyaml, pysigma) |
 | Sigma rules | `python -m pytest -q detection/tests/test_sigma.py` (pySigma validators + agreement with the Wazuh rules on `cases.yaml`) |
 | Threat intel | `python scripts/update_ti.py` (feed, cached; `--offline`; `--sample` = what is committed, CI `--sample --check`) · `make ti` = rebuild + restart manager |
+| Docs site | `pip install -r requirements-docs.txt` then `mkdocs serve` / `mkdocs build --strict` (CI: `docs.yml`, Pages from `main`) · every `docs/*.md` must be in the `mkdocs.yml` nav (`test_docs_site.py`) |
 | Detection catalog | `python scripts/gen_catalog.py` (CI: `--check`) - never edit the generated tables by hand |
 | MITRE layer | `python scripts/gen_mitre_layer.py` (CI: `--check`) -> `docs/mitre-layer.json` |
 | Dashboards | `python scripts/import_dashboards.py` (run by `make up`) · edit panels in `scripts/build_dashboards.py`, then run it (lab up) to rebuild + re-export `dashboards/*.ndjson` · `python scripts/screenshot_dashboards.py` |

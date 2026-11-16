@@ -1,0 +1,2 @@
+# Documentation site (mkdocs.yml); Dependabot keeps it up to date.
+mkdocs-material==9.8.1
