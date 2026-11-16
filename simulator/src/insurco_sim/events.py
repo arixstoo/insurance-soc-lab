@@ -53,6 +53,14 @@ def web_request(rng: random.Random, now: datetime) -> str:
             f'{status} {rng.randint(300, 60000)} "-" "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"')
 
 
+def web_view(rng: random.Random, now: datetime, *, ip: str, query: bool = False) -> str:
+    """A harmless GET answered 200, with or without a query string (no attack pattern)."""
+    page = "/api/v1/policies?agency={agency}" if query else rng.choice(["/", "/login", "/claims/{id}"])
+    page = page.format(id=rng.randint(10000, 99999), agency=rng.randint(1, 480))
+    return (f'{ip} - - [{_apache_ts(now)}] "GET {page} HTTP/1.1" 200 {rng.randint(300, 60000)} '
+            f'"-" "Mozilla/5.0 (X11; Linux x86_64)"')
+
+
 def web_attack(rng: random.Random, now: datetime, *, kind: str | None = None, ip: str | None = None) -> str:
     kind = kind or rng.choice(list(c.WEB_ATTACKS))
     path = rng.choice(c.WEB_ATTACKS[kind])

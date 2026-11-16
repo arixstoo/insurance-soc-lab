@@ -12,8 +12,9 @@
 #
 #   scripts/e2e.sh            needs: docker compose, curl, jq; INDEXER_PASSWORD in env or .env
 #
-# Night-only rules (a <time> element in insurco_rules.xml, e.g. 100102, 100133) are
-# excluded from the check: they depend on the manager clock, not on the scenario.
+# Clock-dependent rules (a <time> element in insurco_rules.xml) whose window does not
+# contain the manager's current hour are excluded from the check: at midday the night rules
+# (100102, 100133...), at night the day-only threat-intel rule 100150.
 # For a deterministic run, start the lab with a manager clock at daytime (the workflow
 # sets LAB_TZ so that it is about 12:00) and random attacks disabled (SIM_ATTACK_MIN/MAX
 # very large): at night 100133 replaces 100131 and 100132 cannot fire, and a random
@@ -110,14 +111,22 @@ sleep 5  # let the restarted logcollectors open their files
 echo "agents settled"
 
 # ---------------------------------------------------------------- 2. scenarios
-# Night-only rules: ids of <rule> blocks that contain a <time> element.
-mapfile -t NIGHT_ONLY < <(awk '
+# Off-clock rules: ids of <rule> blocks whose <time>H am|pm - H am|pm</time> window (whole
+# hours, may wrap past midnight) does not contain the manager's current hour.
+manager_hour="$(docker compose exec -T wazuh.manager date '+%H' | tr -d '\r')"
+mapfile -t OFF_CLOCK < <(awk -v now="$((10#$manager_hour))" '
+  function h24(n, ampm) { n %= 12; return ampm == "pm" ? n + 12 : n }
   match($0, /<rule id="[0-9]+"/) { id = substr($0, RSTART + 10, RLENGTH - 11) }
-  /<time>/ && id { print id }
+  id && match($0, /<time>[0-9]+ (am|pm) - [0-9]+ (am|pm)<\/time>/) {
+    split(substr($0, RSTART + 6, RLENGTH - 13), w, " ")
+    from = h24(w[1], w[2]); to = h24(w[4], w[5])
+    inside = (from < to) ? (now >= from && now < to) : (now >= from || now < to)
+    if (!inside) print id
+  }
   /<\/rule>/ { id = "" }
 ' "$RULES_XML")
-echo "night-only rules (excluded): ${NIGHT_ONLY[*]:-none}"
 echo "manager clock: $(docker compose exec -T wazuh.manager date '+%a %H:%M %Z')"
+echo "rules outside their <time> window now (excluded): ${OFF_CLOCK[*]:-none}"
 
 scenarios_json="$(docker compose exec -T simulator insurco-sim list --json)"
 mapfile -t SCENARIOS < <(jqx -r '.[].name' <<<"$scenarios_json")
@@ -144,7 +153,7 @@ for scenario in "${SCENARIOS[@]}"; do
 done
 
 # ---------------------------------------------------------------- 3. indexer
-# "source where rule" triples to check, night-only rules removed. where = "simulated" (any
+# "source where rule" triples to check, off-clock rules removed. where = "simulated" (any
 # simulated host) or the name of the real host whose agent must raise the rule.
 mapfile -t PAIRS < <(jqx -r '.[] | .name as $s | .expected_rules[] | "\($s) simulated \(.)"' <<<"$scenarios_json")
 if [ "$REAL" = 1 ]; then
@@ -153,8 +162,8 @@ fi
 CHECK=()
 for pair in "${PAIRS[@]}"; do
   rule="${pair##* }"
-  if printf '%s\n' "${NIGHT_ONLY[@]}" | grep -qx "$rule"; then
-    echo "skip ${pair} (night-only rule)"
+  if printf '%s\n' "${OFF_CLOCK[@]}" | grep -qx "$rule"; then
+    echo "skip ${pair} (outside its <time> window)"
   else
     CHECK+=("$pair")
   fi

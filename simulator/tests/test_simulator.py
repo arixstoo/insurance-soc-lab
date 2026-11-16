@@ -223,3 +223,30 @@ def test_run_writes_rogue_admin_with_its_gap(tmp_path):
     clock = Clock(now=lambda: NOW + timedelta(seconds=elapsed[0]), monotonic=lambda: elapsed[0], sleep=sleep)
     result = run(tmp_path, seed=3, duration=30, rate=0.5, attack_every=(1, 1), only=["rogue_admin"], clock=clock)
     assert result.attacks and SCENARIOS["rogue_admin"].gap in sleeps
+
+
+# --- phase 7: threat intel ---------------------------------------------------------------
+
+def _ti_listed(ip: str) -> bool:
+    """Same lookup as Wazuh's address_match_key: the full address or a prefix key a.b.c. / a.b. / a."""
+    keys = {line.split(":", 1)[0] for line in (REPO / "detection/lists/ti-bad-ips").read_text().splitlines() if line}
+    parts = ip.split(".")
+    return ip in keys or any(".".join(parts[:n]) + "." in keys for n in (1, 2, 3))
+
+
+def test_known_bad_ips_are_in_the_committed_threat_intel_list():
+    assert c.KNOWN_BAD_IPS and all(_ti_listed(ip) for ip in c.KNOWN_BAD_IPS)
+
+
+def test_other_scenarios_attack_from_unlisted_ips():
+    """A listed attacker would turn 100151 / 100154 / 100150 on in place of the expected rules."""
+    assert not any(_ti_listed(ip) for ip in c.EXTERNAL_IPS + c.INTERNAL_IPS + [c.SCANNER_IP])
+
+
+def test_known_bad_ip_scenario_reaches_each_threat_intel_rule():
+    events = SCENARIOS["known_bad_ip"].build(rng(), NOW)
+    web = [line for role, line in events if role == "web"]
+    ips = {line.split()[0] for line in web}
+    assert len(ips) == 1 and _ti_listed(ips.pop())
+    assert sum("?" in line for line in web) == 1 and all('HTTP/1.1" 200 ' in line for line in web)
+    assert any(role == "linux" and "Accepted password" in line for role, line in events)

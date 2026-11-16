@@ -101,6 +101,15 @@ def _password_spray(rng: random.Random, now: datetime) -> list[Event]:
             for user in rng.sample(c.EMPLOYEES, 10)]
 
 
+def _known_bad_ip(rng: random.Random, now: datetime) -> list[Event]:
+    ip = rng.choice(c.KNOWN_BAD_IPS)
+    return [
+        ("web", e.web_view(rng, now, ip=ip)),
+        ("web", e.web_view(rng, now, ip=ip, query=True)),
+        ("linux", e.ssh_success(rng, now, user=rng.choice(c.EMPLOYEES), ip=ip)),
+    ]
+
+
 SCENARIOS: dict[str, Scenario] = {s.name: s for s in [
     Scenario("brute_force", "SSH password guessing from one external IP, then a successful login",
              ("100100", "100101"), _brute_force),
@@ -120,4 +129,8 @@ SCENARIOS: dict[str, Scenario] = {s.name: s for s in [
              ("100143", "100145"), _rogue_admin, gap=LOGCOLLECTOR_POLL + 1),
     Scenario("password_spray", "Many accounts fail to log on from one workstation IP",
              ("100142",), _password_spray),  # 100141 is level 2 since phase 3: matched, never alerted
+    # 100150 is day-only (06:00-22:00): at night the login raises 100152 instead, and e2e skips
+    # 100150 (rules whose <time> window excludes the manager clock).
+    Scenario("known_bad_ip", "A threat-intel listed IP browses the portal, then logs in over SSH",
+             ("100151", "100154", "100150"), _known_bad_ip),
 ]}
