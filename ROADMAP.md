@@ -166,7 +166,8 @@ scenario's expected rules in alerts within 10 minutes.
       SSH hosts only. Proven live by `scripts/check_response.py` (simulated and real host:
       the real client's TCP connections to sshd time out, then work again)
 - [x] Response flow documented with a mermaid sequence diagram
-- [x] Release `v0.7.0` (CI and e2e green, lab restarted from a clean state)
+- [x] Release `v0.7.0` (CI green; e2e green on the release branch, red once on `main` after the
+      merge - the `rogue_admin` / 100145 flake, fixed after the release; lab restarted from a clean state)
 - [ ] Optional: Shuffle SOAR workflow (enrich IP -> open ticket -> notify)
 
 **Done when:** injecting `brute_force` produces the alert, the webhook message and the
