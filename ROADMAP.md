@@ -13,7 +13,7 @@ Status: ✅ done · 🔨 in progress · ⬜ planned
 | 4 | Real services, real attacks in the lab | `v0.5.0` | ✅ |
 | 5 | SOC dashboards as code + MITRE layer | `v0.6.0` | ✅ |
 | 6 | Response: runbooks, alerting, active response | `v0.7.0` | ✅ |
-| 7 | Portability: Sigma rules + threat intel | `v0.8.0` | 🔨 |
+| 7 | Portability: Sigma rules + threat intel | `v0.8.0` | ✅ |
 | 8 | Publication: docs, demo, v1.0 | `v1.0.0` | ⬜ |
 
 ---
@@ -173,7 +173,7 @@ scenario's expected rules in alerts within 10 minutes.
 **Done when:** injecting `brute_force` produces the alert, the webhook message and the
 timed block, and the block expires by itself.
 
-## Phase 7 - Portability and threat intel 🔨
+## Phase 7 - Portability and threat intel ✅
 
 **Goal:** detections that leave Wazuh, and alerts that know about the outside world.
 
@@ -194,7 +194,7 @@ timed block, and the block expires by itself.
 - [x] TI rules 100150-100154 raise activity from a listed IP without breaking the
       correlations or the active response (proven by tests: a blanket child rule would
       have); runbook `threat-intel-hit.md`
-- [ ] Release `v0.8.0` (CI green, lab restarted from a clean state)
+- [x] Release `v0.8.0` (CI and e2e green, lab restarted from a clean state)
 - [ ] Optional: send IoCs to an `ioc-hunter` CLI (separate repo)
 
 **Done when:** CI validates the Sigma rules; the TI rules are tested with the sample list.
