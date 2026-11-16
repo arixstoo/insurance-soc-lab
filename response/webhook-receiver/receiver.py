@@ -155,15 +155,30 @@ class Handler(BaseHTTPRequestHandler):
                               "text/html; charset=utf-8")
         return self._json(HTTPStatus.NOT_FOUND, {"error": "not found"})
 
+    def _body_length(self) -> int:
+        try:
+            return int(self.headers.get("Content-Length", "0"))
+        except ValueError:
+            return -1
+
+    def _discard_body(self) -> None:
+        """Read the body of a request rejected before parsing it. Closing a socket that still holds
+        unread data sends a TCP reset, and the client may lose the response; a body too large to
+        read is not read and the connection is closed instead."""
+        length = self._body_length()
+        if 0 < length <= MAX_BODY:
+            self.rfile.read(length)
+        elif length != 0:
+            self.close_connection = True
+
     def do_POST(self) -> None:
         if not self.ingest:
+            self._discard_body()
             return self._json(HTTPStatus.METHOD_NOT_ALLOWED, {"error": "read-only listener"})
         if urlparse(self.path).path != HOOK_PATH:
+            self._discard_body()
             return self._json(HTTPStatus.NOT_FOUND, {"error": "not found"})
-        try:
-            length = int(self.headers.get("Content-Length", "0"))
-        except ValueError:
-            length = -1
+        length = self._body_length()
         if length <= 0 or length > MAX_BODY:
             self.close_connection = True  # the unread body must not be parsed as a next request
             return self._json(HTTPStatus.REQUEST_ENTITY_TOO_LARGE if length > MAX_BODY else HTTPStatus.LENGTH_REQUIRED,
@@ -178,6 +193,7 @@ class Handler(BaseHTTPRequestHandler):
         return self._json(HTTPStatus.CREATED, {"seq": record["seq"]})
 
     def _not_allowed(self) -> None:
+        self._discard_body()
         self._json(HTTPStatus.METHOD_NOT_ALLOWED, {"error": "method not allowed"})
 
     do_PUT = do_DELETE = do_PATCH = _not_allowed
