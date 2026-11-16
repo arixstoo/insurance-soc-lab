@@ -1,0 +1,5 @@
+# Python dependencies of the detection tests and scripts (CI: lint-and-unit, detection).
+# pySigma validates the Sigma rules of detection/sigma/ and parses them for the
+# agreement tests (detection/tests/test_sigma.py).
+pyyaml==6.0.3
+pysigma==2.1.0

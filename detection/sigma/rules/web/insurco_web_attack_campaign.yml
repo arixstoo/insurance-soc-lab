@@ -1,0 +1,32 @@
+title: Coordinated Web Attack Campaign From One Source
+id: c2af186c-6e7e-4185-8627-c343ce44b31e
+name: insurco_web_attack_campaign
+status: test
+description: |
+    5 web attack requests (SQL injection, XSS, path traversal, secrets probe, any mix)
+    from the same client address within 5 minutes.
+references:
+    - https://github.com/arixstoo/insurance-soc-lab/blob/main/docs/detection-catalog.md#sigma-rules
+author: insurance-soc-lab
+date: 2026-11-16
+tags:
+    - attack.initial-access
+    - attack.t1190
+correlation:
+    type: event_count
+    rules:
+        - insurco_web_sql_injection
+        - insurco_web_xss
+        - insurco_web_path_traversal
+        - insurco_web_secrets_probe
+    group-by:
+        - c-ip
+    timespan: 5m
+    condition:
+        gte: 5
+    generate: true
+falsepositives:
+    - An authorised penetration test from an address missing from the scanner list
+level: critical
+wazuh_rules:
+    - '100129'

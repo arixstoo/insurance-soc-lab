@@ -1,0 +1,37 @@
+title: Bulk Read Of A Sensitive Insurance Table
+id: 24bd966b-3114-4a44-afc1-38d745e6d252
+name: insurco_db_bulk_read
+status: test
+description: |
+    A person (not an allow-listed service account) reads 100 rows or more of a table that
+    holds customer data: clients, policies, claims, payments, beneficiaries.
+    Logsource: the lab's database audit trail (JSON records with db_user, table, rows_returned).
+references:
+    - https://github.com/arixstoo/insurance-soc-lab/blob/main/docs/detection-catalog.md#sigma-rules
+author: insurance-soc-lab
+date: 2026-11-16
+tags:
+    - attack.collection
+    - attack.t1213
+logsource:
+    product: insurco
+    service: db_audit
+    definition: 'JSON audit records: log_type db_audit, db_user, table, rows_returned, source_ip'
+detection:
+    selection:
+        table:
+            - clients
+            - policies
+            - claims
+            - payments
+            - beneficiaries
+        rows_returned|gte: 100
+    filter_service_accounts:
+        db_user|expand: '%insurco_db_service_accounts%'
+    condition: selection and not filter_service_accounts
+falsepositives:
+    - Monthly reporting extracts run by a person instead of the service account
+level: medium
+wazuh_rules:
+    - '100131'
+    - '100133'

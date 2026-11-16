@@ -1,0 +1,26 @@
+title: User Account Created
+id: 841cec39-94c4-4ffb-8a13-2eb631c68f5d
+name: insurco_win_account_created
+status: test
+description: |
+    A user account was created (Security event 4720). Low signal alone (onboarding);
+    first step of the rogue admin correlation.
+references:
+    - https://github.com/arixstoo/insurance-soc-lab/blob/main/docs/detection-catalog.md#sigma-rules
+author: insurance-soc-lab
+date: 2026-11-16
+tags:
+    - attack.persistence
+    - attack.t1136.001
+logsource:
+    product: windows
+    service: security
+detection:
+    selection:
+        EventID: 4720
+    condition: selection
+falsepositives:
+    - Normal onboarding by IT
+level: medium
+wazuh_rules:
+    - '100143'
