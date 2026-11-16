@@ -18,7 +18,7 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install
-        run: pip install -e "simulator[dev]"
+        run: pip install -e "simulator[dev]" -r detection/requirements.txt
       - name: Lint
         run: ruff check simulator detection/tests scripts real response
       - name: Shell scripts
@@ -27,7 +27,12 @@ jobs:
       - name: Unit tests
         run: pytest simulator -q
       - name: Every rule has a positive and a negative case
-        run: pytest detection/tests -q
+        run: pytest detection/tests -q --ignore detection/tests/test_sigma.py
+      - name: Sigma rules - pySigma validators, mapping, agreement with the Wazuh rules on the cases
+        # CI is set: the ATT&CK tag validator (it downloads MITRE ATT&CK) must run, not skip
+        run: pytest detection/tests/test_sigma.py -q -rs
+      - name: Threat-intel list is the sample build (documentation addresses only)
+        run: python scripts/update_ti.py --sample --check
       - name: Alert routing and active response (integration, receiver, config)
         run: pytest response/tests -q
       - name: Detection catalog is up to date with the rules
@@ -56,6 +61,6 @@ jobs:
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.12"
-      - run: pip install pyyaml
+      - run: pip install -r detection/requirements.txt
       - name: Run detection tests
         run: python detection/tests/run_tests.py
