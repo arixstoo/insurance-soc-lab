@@ -1,0 +1,33 @@
+title: Cross-Site Scripting Attempt In Web Request
+id: 90c62b0f-33a4-4599-bd81-4953b8bd03a8
+name: insurco_web_xss
+status: test
+description: |
+    Cross-site scripting pattern in the query string of a request to a business web app,
+    raw or URL-encoded. The internal vulnerability scanner is excluded.
+references:
+    - https://github.com/arixstoo/insurance-soc-lab/blob/main/docs/detection-catalog.md#sigma-rules
+author: insurance-soc-lab
+date: 2026-11-16
+tags:
+    - attack.initial-access
+    - attack.t1190
+logsource:
+    category: webserver
+detection:
+    selection:
+        cs-uri-query|contains:
+            - '<script'
+            - '%3cscript'
+            - 'javascript:'
+            - 'onerror='
+            - 'onload='
+            - 'document.cookie'
+    filter_scanner:
+        c-ip|expand: '%insurco_scanner_ips%'
+    condition: selection and not filter_scanner
+falsepositives:
+    - Authorised vulnerability scans from an address missing from the scanner list
+level: high
+wazuh_rules:
+    - '100121'

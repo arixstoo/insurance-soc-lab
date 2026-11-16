@@ -6,7 +6,7 @@ updates:
     commit-message: { prefix: "ci" }
 
   - package-ecosystem: pip
-    directory: /simulator
+    directories: [/simulator, /detection]
     schedule: { interval: monthly }
     commit-message: { prefix: "build" }
 

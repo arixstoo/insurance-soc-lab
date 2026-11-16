@@ -1,0 +1,39 @@
+title: Bulk Read Of A Sensitive Insurance Table - PostgreSQL Audit
+id: da11de13-21dc-400b-828d-d2ae03fb4735
+name: insurco_pgaudit_bulk_read
+status: test
+description: |
+    Same detection as insurco_db_bulk_read on a real PostgreSQL audit trail (pgaudit with
+    log_relation and log_rows, jsonlog). Needs pgaudit's CSV message split into its fields
+    (class, object_name, rows) by the log pipeline, as the Wazuh decoder insurco-pgaudit does.
+references:
+    - https://github.com/arixstoo/insurance-soc-lab/blob/main/docs/detection-catalog.md#sigma-rules
+    - https://github.com/pgaudit/pgaudit#format
+author: insurance-soc-lab
+date: 2026-11-16
+tags:
+    - attack.collection
+    - attack.t1213
+logsource:
+    product: postgresql
+    service: pgaudit
+    definition: 'jsonlog (user, remote_host) and the pgaudit message fields (class, command, object_type, object_name, rows)'
+detection:
+    selection:
+        class: READ
+        object_name|endswith:
+            - '.clients'
+            - '.policies'
+            - '.claims'
+            - '.payments'
+            - '.beneficiaries'
+        rows|gte: 100
+    filter_service_accounts:
+        user|expand: '%insurco_db_service_accounts%'
+    condition: selection and not filter_service_accounts
+falsepositives:
+    - Same as insurco_db_bulk_read; a JOIN logs one line per table, so one wide query can count twice
+level: medium
+wazuh_rules:
+    - '100137'
+    - '100138'

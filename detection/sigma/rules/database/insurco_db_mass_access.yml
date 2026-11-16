@@ -1,0 +1,36 @@
+title: Mass Customer Data Access By One User
+id: 04147caa-4c76-4fd3-90fe-2d4648120ad1
+name: insurco_db_mass_access
+status: test
+description: |
+    5 bulk reads of sensitive tables by the same database user within 5 minutes, on either
+    audit trail (the lab's JSON or PostgreSQL pgaudit): possible insider fraud.
+references:
+    - https://github.com/arixstoo/insurance-soc-lab/blob/main/docs/detection-catalog.md#sigma-rules
+author: insurance-soc-lab
+date: 2026-11-16
+tags:
+    - attack.collection
+    - attack.t1213
+    - attack.t1530
+correlation:
+    type: event_count
+    rules:
+        - insurco_db_bulk_read
+        - insurco_pgaudit_bulk_read
+    group-by:
+        - db_user
+    aliases:
+        db_user:
+            insurco_db_bulk_read: db_user
+            insurco_pgaudit_bulk_read: user
+    timespan: 5m
+    condition:
+        gte: 5
+    generate: true
+falsepositives:
+    - A BI developer testing an extract by hand
+level: high
+wazuh_rules:
+    - '100132'
+    - '100134'

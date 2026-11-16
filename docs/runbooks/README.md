@@ -14,6 +14,7 @@ or a runbook that does not exist.
 | Mass customer data access | 100131-100134, 100137, 100138 | [insider-data-access.md](insider-data-access.md) | 100132, 100133, 100134, 100138: webhook |
 | Privilege escalation / rogue admin | 100110, 100143-100145 | [privilege-escalation.md](privilege-escalation.md) | 100110, 100144, 100145: webhook |
 | Windows password guessing | 100141, 100142 | [windows-password-guessing.md](windows-password-guessing.md) | - |
+| Threat-intel hit (known-bad IP) | 100150-100154 | [threat-intel-hit.md](threat-intel-hit.md) | 100150, 100152, 100153: webhook |
 
 Template for new runbooks: **Severity · MITRE · Why it matters ·
 1. Triage · 2. Investigation · 3. Containment · 4. Close.**

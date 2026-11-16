@@ -1,0 +1,37 @@
+title: Path Traversal Attempt In Web Request
+id: 8bc17608-2ce1-44ed-b4c8-083dc9c74749
+name: insurco_web_path_traversal
+status: test
+description: |
+    "../" (plain or URL-encoded) in the path or the query string of a request.
+    The internal vulnerability scanner is excluded.
+references:
+    - https://github.com/arixstoo/insurance-soc-lab/blob/main/docs/detection-catalog.md#sigma-rules
+author: insurance-soc-lab
+date: 2026-11-16
+tags:
+    - attack.initial-access
+    - attack.t1190
+    - attack.discovery
+    - attack.t1083
+logsource:
+    category: webserver
+detection:
+    selection_stem:
+        cs-uri-stem|contains:
+            - '../'
+            - '..%2f'
+            - '%2e%2e'
+    selection_query:
+        cs-uri-query|contains:
+            - '../'
+            - '..%2f'
+            - '%2e%2e'
+    filter_scanner:
+        c-ip|expand: '%insurco_scanner_ips%'
+    condition: 1 of selection_* and not filter_scanner
+falsepositives:
+    - Rare - an encoded '..' in a legitimate parameter
+level: high
+wazuh_rules:
+    - '100122'

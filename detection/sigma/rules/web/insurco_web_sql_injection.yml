@@ -1,0 +1,37 @@
+title: SQL Injection Attempt In Web Request
+id: c2603650-af8a-4756-9b82-f28daa68a472
+name: insurco_web_sql_injection
+status: test
+description: |
+    SQL injection pattern in the query string of a request to a business web app.
+    Matched on the raw (URL-encoded) query string, as the Wazuh rules do.
+    The internal vulnerability scanner is excluded (placeholder insurco_scanner_ips).
+references:
+    - https://github.com/arixstoo/insurance-soc-lab/blob/main/docs/detection-catalog.md#sigma-rules
+author: insurance-soc-lab
+date: 2026-11-16
+tags:
+    - attack.initial-access
+    - attack.t1190
+logsource:
+    category: webserver
+detection:
+    selection:
+        cs-uri-query|contains:
+            - 'union%20select'
+            - 'union+select'
+            - 'union select'
+            - 'union%20all%20select'
+            - '%27%20or%201=1'
+            - "' or 1=1"
+            - 'information_schema'
+            - 'waitfor%20delay'
+            - '@@version'
+    filter_scanner:
+        c-ip|expand: '%insurco_scanner_ips%'
+    condition: selection and not filter_scanner
+falsepositives:
+    - Authorised vulnerability scans from an address missing from the scanner list
+level: high
+wazuh_rules:
+    - '100120'

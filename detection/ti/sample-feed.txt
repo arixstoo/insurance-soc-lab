@@ -1,0 +1,22 @@
+# Sample threat-intel feed for the lab - DOCUMENTATION ADDRESSES ONLY (RFC 5737).
+# Same format as the default public feed (abuse.ch Feodo Tracker): one IPv4 address or
+# CIDR per line, '#' comments. scripts/update_ti.py --sample builds the committed CDB list
+# detection/lists/ti-bad-ips from it; detection tests use these addresses.
+#
+# Kept away from the simulator's attacker pool (203.0.113.10-59, 198.51.100.10-39) so the
+# 24 h noise replay and the e2e expectations are unchanged.
+#
+# A whole /24, written as the prefix key "192.0.2."
+192.0.2.0/24
+# Single addresses
+198.51.100.200
+198.51.100.201
+198.51.100.202
+198.51.100.203
+# A /29, expanded into 8 addresses
+203.0.113.200/29
+# Lines the script must skip, whatever a feed says:
+10.20.5.10        # lab range (the internal scanner): never listed
+192.168.1.1       # private range
+2001:db8::1       # IPv6: a CDB key cannot hold ':'
+not-an-ip

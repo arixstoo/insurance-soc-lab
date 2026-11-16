@@ -13,7 +13,7 @@ Status: ✅ done · 🔨 in progress · ⬜ planned
 | 4 | Real services, real attacks in the lab | `v0.5.0` | ✅ |
 | 5 | SOC dashboards as code + MITRE layer | `v0.6.0` | ✅ |
 | 6 | Response: runbooks, alerting, active response | `v0.7.0` | ✅ |
-| 7 | Portability: Sigma rules + threat intel | `v0.8.0` | ⬜ |
+| 7 | Portability: Sigma rules + threat intel | `v0.8.0` | 🔨 |
 | 8 | Publication: docs, demo, v1.0 | `v1.0.0` | ⬜ |
 
 ---
@@ -173,11 +173,31 @@ scenario's expected rules in alerts within 10 minutes.
 **Done when:** injecting `brute_force` produces the alert, the webhook message and the
 timed block, and the block expires by itself.
 
-## Phase 7 - Portability and threat intel ⬜
+## Phase 7 - Portability and threat intel 🔨
 
-- [ ] Sigma versions of the main rules (feeds the `sigma-rules-collection` repo)
-- [ ] Threat-intel CDB list of known-bad IPs, refreshed by a script
+**Goal:** detections that leave Wazuh, and alerts that know about the outside world.
+
+- [x] Sigma versions of the main rules (feeds the `sigma-rules-collection` repo):
+      `detection/sigma/rules/`, 13 rules (brute force, web attacks + campaign, insider bulk
+      read on both audit trails + mass access, rogue admin), Sigma v2 correlations
+      (`event_count`, `temporal_ordered`, aliases), allow-lists as placeholders
+- [x] Sigma tests in CI (`detection/tests/test_sigma.py`): pySigma 2.1 validators (ATT&CK tags
+      included), mapping to existing Wazuh rules, same ATT&CK techniques, same windows and
+      thresholds, and **agreement with the Wazuh rules on the cases of `cases.yaml`**
+      (positive and negative for every Sigma rule)
+- [x] Catalog: which Wazuh rule each Sigma rule stands for (generated), field mapping,
+      limits of the translation (time of day, `ignore`, built-in parents, SIDs, ...)
+- [x] Threat-intel CDB list of known-bad IPs, refreshed by a script: `scripts/update_ti.py`
+      (public feed configurable, cached 24 h, offline fallback to the cache then to a sample
+      list in the repo, private ranges never listed), `make ti` / `lab.ps1 ti`; CI checks the
+      committed list is the sample build
+- [x] TI rules 100150-100154 raise activity from a listed IP without breaking the
+      correlations or the active response (proven by tests: a blanket child rule would
+      have); runbook `threat-intel-hit.md`
+- [ ] Release `v0.8.0` (CI green, lab restarted from a clean state)
 - [ ] Optional: send IoCs to an `ioc-hunter` CLI (separate repo)
+
+**Done when:** CI validates the Sigma rules; the TI rules are tested with the sample list.
 
 ## Phase 8 - Publication ⬜
 

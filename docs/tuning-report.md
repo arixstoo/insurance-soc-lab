@@ -109,7 +109,7 @@ window of the rule, in this background, against the rule's threshold.
 Examples (first two per rule):
 
 ```text
-100143  15:56:15 workstation: {"log_type": "winsec", "timestamp": "2026-11-16T15:56:15", "EventID": 4720, "WorkstationName": "WS-CLAIMS-02", "SubjectUserName": "it.admin", "TargetU
-100143  16:43:41 workstation: {"log_type": "winsec", "timestamp": "2026-11-16T16:43:41", "EventID": 4720, "WorkstationName": "WS-CLAIMS-02", "SubjectUserName": "it.admin", "TargetU
+100143  15:56:15 workstation: {"log_type": "winsec", "timestamp": "2026-11-23T15:56:15", "EventID": 4720, "WorkstationName": "WS-CLAIMS-02", "SubjectUserName": "it.admin", "TargetU
+100143  16:43:41 workstation: {"log_type": "winsec", "timestamp": "2026-11-23T16:43:41", "EventID": 4720, "WorkstationName": "WS-CLAIMS-02", "SubjectUserName": "it.admin", "TargetU
 ```
 <!-- END GENERATED: noise -->

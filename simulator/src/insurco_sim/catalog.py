@@ -25,6 +25,10 @@ REPORTING_HOST_IP = "10.20.20.5"
 SCANNER_IP = "10.20.5.10"             # internal vulnerability scanner: web attack payloads
 GROUPS = ["Claims-Readers", "Underwriting", "Finance-Users", "Agency-Staff"]  # non-admin groups
 EXTERNAL_IPS = [f"203.0.113.{i}" for i in range(10, 60)] + [f"198.51.100.{i}" for i in range(10, 40)]
+# Known-bad sources: inside 192.0.2.0/24, listed by the sample threat-intel feed
+# (detection/ti/sample-feed.txt -> detection/lists/ti-bad-ips). EXTERNAL_IPS must stay
+# outside that feed, or the other scenarios would raise threat-intel alerts instead.
+KNOWN_BAD_IPS = [f"192.0.2.{i}" for i in range(100, 150)]
 
 SENSITIVE_TABLES = ["clients", "policies", "claims", "payments", "beneficiaries"]
 OTHER_TABLES = ["agencies", "products", "tariffs"]

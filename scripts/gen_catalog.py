@@ -11,6 +11,10 @@ false positives, tuning log, gaps) is kept as is.
 --check also fails when a rule has no row in the hand-written "Known false
 positives" table, or when that table names a rule that does not exist.
 
+Sigma: the `sigma` block lists detection/sigma/rules/ (one file per rule) with the Wazuh
+rules each one stands for (its `wazuh_rules` attribute); detection/tests/test_sigma.py
+proves that they agree on the test cases.
+
 Runbooks: a rule's `<info type="link">` (Wazuh's own element, so the link also travels
 with the alert) points to docs/runbooks/<file>.md on GitHub; the catalog links the
 rule's description to that runbook.
@@ -26,11 +30,15 @@ import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field
 from pathlib import Path
 
+import yaml
+
 ROOT = Path(__file__).resolve().parents[1]
 RULES = ROOT / "detection" / "rules" / "insurco_rules.xml"
 LISTS = ROOT / "detection" / "lists"
 CATALOG = ROOT / "docs" / "detection-catalog.md"
 RUNBOOKS = ROOT / "docs" / "runbooks"
+SIGMA = ROOT / "detection" / "sigma" / "rules"
+LIST_SHOWN = 4  # longer lists (threat intel) show their first entries and a count
 # Absolute, so the link still works in an alert, a webhook message or a ticket
 RUNBOOK_BASE = "https://github.com/arixstoo/insurance-soc-lab/blob/main/docs/runbooks/"
 
@@ -47,6 +55,7 @@ MITRE = {
     "T1213": "Data from Information Repositories",
     "T1530": "Data from Cloud Storage",
     "T1548.003": "Sudo and Sudo Caching",
+    "T1595": "Active Scanning",
     "T1595.003": "Wordlist Scanning",
 }
 
@@ -150,8 +159,11 @@ def lists_table(rules: list[Rule], lists_dir: Path = LISTS) -> str:
         users = [r for r in rules if any(name == path.name for _, _, name in r.lists)]
         effect = "; ".join(sorted({f"{'skip' if lk.startswith('not_') else 'require'} on `{fld}`"
                                    for r in users for fld, lk, name in r.lists if name == path.name}))
+        shown = entries if len(entries) <= LIST_SHOWN else entries[:LIST_SHOWN - 1]
         listed = "<br>".join(f"`{key}` - {_cell(value.strip())}" if value.strip() else f"`{key}`"
-                             for key, value in entries)
+                             for key, value in shown)
+        if len(shown) < len(entries):
+            listed += f"<br>... **{len(entries)} entries** (see the file)"
         rows.append(f"| `{path.name}` | {listed or '-'} | {', '.join(r.id for r in users) or 'unused'} | "
                     f"{effect or '-'} |")
     return "\n".join(rows)
@@ -164,6 +176,24 @@ def mitre_table(rules: list[Rule]) -> str:
             techniques.setdefault(t, []).append(r.id)
     rows = ["| Technique | Rules |", "|---|---|"]
     rows += [f"| {mitre_cell([t])} | {', '.join(ids)} |" for t, ids in sorted(techniques.items())]
+    return "\n".join(rows)
+
+
+def sigma_table(directory: Path = SIGMA) -> str:
+    rows = ["| Sigma rule | Kind | Logsource | Level | Wazuh rule(s) |", "|---|---|---|---|---|"]
+    for path in sorted(directory.rglob("*.yml")):
+        doc = yaml.safe_load(path.read_text(encoding="utf-8"))
+        corr = doc.get("correlation")
+        if corr:
+            kind = f"{corr['type']} ({', '.join(corr['group-by'])}, {corr['timespan']}"
+            kind += f", >= {corr['condition']['gte']})" if "condition" in corr else ")"
+            source = "correlation of " + ", ".join(f"`{r}`" for r in corr["rules"])
+        else:
+            kind = "rule"
+            source = ", ".join(f"{k}: `{v}`" for k, v in doc["logsource"].items() if k != "definition")
+        link = f"[`{path.stem}`](../{path.relative_to(ROOT).as_posix()})"
+        rows.append(f"| {link}<br>{_cell(doc['title'])} | {_cell(kind)} | {source} | {doc['level']} | "
+                    f"{', '.join(str(i) for i in doc['wazuh_rules'])} |")
     return "\n".join(rows)
 
 
@@ -211,6 +241,7 @@ def render(text: str, rules: list[Rule]) -> str:
         "rules": rules_table(rules),
         "lists": lists_table(rules),
         "mitre": mitre_table(rules),
+        "sigma": sigma_table(),
     })
 
 

@@ -29,6 +29,7 @@ real Wazuh engine in CI.
 | SQL injection, XSS, path traversal, secret-file probing, coordinated campaigns | 100120-100129 | T1190, T1083, T1595.003 |
 | **Insider misuse of customer data**: bulk reads of clients/claims/payments, repeated or at night (service accounts allow-listed) | 100131-100134 | T1213, T1530 |
 | Windows password guessing, new accounts, users added to Administrators, **account created then made admin within 10 min** | 100142-100145 | T1110, T1136.001, T1098 |
+| **Threat intel**: login, page view (with or without a query string), night login or web campaign from a known-bad IP (public feed, cached, offline sample) | 100150-100154 | T1078, T1595, T1190 |
 
 ATT&CK coverage as a Navigator layer, generated from the rules (colour = number of rules per
 technique): [docs/mitre-layer.json](docs/mitre-layer.json) - [open it in the ATT&CK Navigator](https://mitre-attack.github.io/attack-navigator/#layerURL=https%3A%2F%2Fraw.githubusercontent.com%2Farixstoo%2Finsurance-soc-lab%2Fmain%2Fdocs%2Fmitre-layer.json).
@@ -36,6 +37,14 @@ technique): [docs/mitre-layer.json](docs/mitre-layer.json) - [open it in the ATT
 Full catalog with false positives and coverage gaps: [docs/detection-catalog.md](docs/detection-catalog.md)
 (tables generated from the XML). Noise budget: 24 h of normal activity, replayed through the
 real engine, gives 3 custom alerts - [docs/tuning-report.md](docs/tuning-report.md).
+
+## Portability: Sigma
+
+The main detections (brute force, web attacks, insider bulk read, rogue admin) also exist as
+**Sigma rules** ([detection/sigma/rules/](detection/sigma/rules/)), Sigma v2 correlations
+included. CI validates them with pySigma and checks that each one **agrees with its Wazuh
+rule on the same engine-verified test cases**. What maps to what, the field mapping and the
+limits of the translation: [detection catalog - Sigma rules](docs/detection-catalog.md#sigma-rules).
 
 ## Response
 
@@ -104,7 +113,7 @@ first custom alert arrives within two. Background activity follows office hours
 scenario runs every 2-5 minutes, day and night. To trigger one now:
 
 ```bash
-docker compose exec simulator insurco-sim list            # 6 scenarios + the rules they target
+docker compose exec simulator insurco-sim list            # 7 scenarios + the rules they target
 docker compose exec simulator insurco-sim inject insider  # mass customer-data access
 ```
 

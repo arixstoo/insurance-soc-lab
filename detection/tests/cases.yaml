@@ -21,6 +21,8 @@
 # All IPs are documentation ranges (RFC 5737) or lab-private ranges (10.20.0.0/16).
 # 10.20.5.10 is the allow-listed internal vulnerability scanner (detection/lists/scanner-ips).
 # 10.20.60.50 is the lab test client of the real hosts (docker-compose.yml, profile `real`).
+# Threat-intel list (detection/lists/ti-bad-ips, from detection/ti/sample-feed.txt): 192.0.2.0/24,
+# 198.51.100.200-203, 203.0.113.200-207. No other case uses these addresses.
 
 cases:
   # ---------- SSH ----------
@@ -106,6 +108,12 @@ cases:
       - "{ts} srv-linux-01 sshd[2326]: Failed password for root from 203.0.113.32 port 51006 ssh2"
       - "{ts} srv-linux-01 sshd[2327]: Accepted password for k.meziane from 10.20.10.40 port 51007 ssh2"
     expect_not: "100101"
+
+  - name: an invalid user probe is not a failed password (Sigma base rule negative)
+    lines:
+      - "{ts} srv-linux-01 sshd[2409]: Invalid user oracle from 198.51.100.150 port 51010"
+    expect: "5710"
+    expect_not: "5760"
 
   - name: normal daytime login is not flagged
     clock: day
@@ -301,6 +309,7 @@ cases:
       - '203.0.113.44 - - [{apache_ts}] "GET /.env HTTP/1.1" 404 196 "-" "Mozilla/5.0"'
       - '203.0.113.44 - - [{apache_ts}] "GET /backup.sql HTTP/1.1" 404 196 "-" "Mozilla/5.0"'
     expect: "100129"
+    expect_not: "100153"
 
   - name: five web attacks from five IPs are not one campaign
     lines:
@@ -637,3 +646,145 @@ cases:
       - '{"log_type":"winsec","EventID":4625,"TargetUserName":"k.meziane","IpAddress":"10.20.10.76","WorkstationName":"WS-CLAIMS-02"}'
       - '{"log_type":"winsec","EventID":4625,"TargetUserName":"k.meziane","IpAddress":"10.20.10.77","WorkstationName":"WS-CLAIMS-02"}'
     expect_not: "100142"
+
+  # ---------- threat intel (CDB list ti-bad-ips, rules 100150-100153) ----------
+  # A child rule replaces its parent's alert, so the TI rules only take events that feed no
+  # correlation and trigger no response (see the rules file). The cases below also prove that
+  # a listed IP still raises the correlations (100100, 100120 -> 100129) and 100101.
+  - name: ti - ssh login accepted from a known-bad IP
+    clock: day
+    lines:
+      - "{ts} srv-linux-01 sshd[4101]: Accepted password for a.benali from 198.51.100.200 port 53101 ssh2"
+    expect: "100150"
+
+  - name: ti - any address of a listed /24 matches (prefix key)
+    clock: day
+    lines:
+      - "{ts} srv-linux-01 sshd[4102]: Accepted password for f.khelil from 192.0.2.77 port 53102 ssh2"
+    expect: "100150"
+
+  - name: ti - last address of a listed /29 matches (expanded CIDR)
+    clock: day
+    lines:
+      - "{ts} srv-linux-01 sshd[4103]: Accepted password for f.khelil from 203.0.113.207 port 53103 ssh2"
+    expect: "100150"
+
+  - name: ti - the address right after the listed /29 is not a hit
+    clock: day
+    lines:
+      - "{ts} srv-linux-01 sshd[4104]: Accepted password for f.khelil from 203.0.113.208 port 53104 ssh2"
+    expect: "5715"
+    expect_not: "100150"
+
+  - name: ti - ssh login from an unlisted IP stays a built-in event
+    clock: day
+    lines:
+      - "{ts} srv-linux-01 sshd[4105]: Accepted password for a.benali from 198.51.100.199 port 53105 ssh2"
+    expect: "5715"
+    expect_not: "100150"
+
+  - name: ti - brute force from a known-bad IP still raises 100100
+    lines:
+      - "{ts} srv-linux-01 sshd[4111]: Failed password for root from 192.0.2.10 port 52101 ssh2"
+      - "{ts} srv-linux-01 sshd[4112]: Failed password for root from 192.0.2.10 port 52102 ssh2"
+      - "{ts} srv-linux-01 sshd[4113]: Failed password for root from 192.0.2.10 port 52103 ssh2"
+      - "{ts} srv-linux-01 sshd[4114]: Failed password for root from 192.0.2.10 port 52104 ssh2"
+      - "{ts} srv-linux-01 sshd[4115]: Failed password for root from 192.0.2.10 port 52105 ssh2"
+      - "{ts} srv-linux-01 sshd[4116]: Failed password for root from 192.0.2.10 port 52106 ssh2"
+    expect: "100100"
+    expect_not: "100150"
+
+  - name: ti - compromise from a known-bad IP stays 100101, the active response trigger
+    lines:
+      - "{ts} srv-linux-01 sshd[4121]: Failed password for root from 192.0.2.11 port 52201 ssh2"
+      - "{ts} srv-linux-01 sshd[4122]: Failed password for root from 192.0.2.11 port 52202 ssh2"
+      - "{ts} srv-linux-01 sshd[4123]: Failed password for root from 192.0.2.11 port 52203 ssh2"
+      - "{ts} srv-linux-01 sshd[4124]: Failed password for root from 192.0.2.11 port 52204 ssh2"
+      - "{ts} srv-linux-01 sshd[4125]: Failed password for root from 192.0.2.11 port 52205 ssh2"
+      - "{ts} srv-linux-01 sshd[4126]: Failed password for root from 192.0.2.11 port 52206 ssh2"
+      - "{ts} srv-linux-01 sshd[4127]: Accepted password for root from 192.0.2.11 port 53127 ssh2"
+    expect: "100101"
+    expect_not: "100150"
+
+  - name: ti - night ssh login from a known-bad IP outside the network
+    clock: night
+    lines:
+      - "{ts} srv-linux-01 sshd[4131]: Accepted password for a.benali from 198.51.100.201 port 53131 ssh2"
+    expect: "100152"
+    expect_not: "100102"
+
+  - name: ti - night root login from a known-bad IP
+    clock: night
+    lines:
+      - "{ts} srv-linux-01 sshd[4132]: Accepted password for root from 198.51.100.202 port 53132 ssh2"
+    expect: "100152"
+
+  - name: ti - night ssh login from an unlisted IP stays 100102
+    clock: night
+    lines:
+      - "{ts} srv-linux-01 sshd[4133]: Accepted password for a.benali from 198.51.100.198 port 53133 ssh2"
+    expect: "100102"
+    expect_not: "100152"
+
+  - name: ti - page view from a known-bad IP
+    lines:
+      - '192.0.2.20 - - [{apache_ts}] "GET /policies/12345 HTTP/1.1" 200 5120 "-" "Mozilla/5.0"'
+    expect: "100151"
+
+  - name: ti - a request with a query string from a known-bad IP
+    lines:
+      - '192.0.2.21 - - [{apache_ts}] "GET /documents/download?file=claim-48213.pdf HTTP/1.1" 200 81920 "-" "Mozilla/5.0"'
+    expect: "100154"
+    expect_not: "100151"
+
+  - name: ti - a request with a query string from an unlisted IP stays on 31100
+    lines:
+      - '10.20.10.26 - - [{apache_ts}] "GET /documents/download?file=claim-48213.pdf HTTP/1.1" 200 81920 "-" "Mozilla/5.0"'
+    expect: "31100"
+    expect_not: "100154"
+
+  - name: ti - xss answered 200 from a known-bad IP stays 100121 (tried before 100154)
+    lines:
+      - '192.0.2.24 - - [{apache_ts}] "GET /search?q=<script>alert(1)</script> HTTP/1.1" 200 512 "-" "Mozilla/5.0"'
+    expect: "100121"
+    expect_not: "100154"
+
+  - name: ti - sql injection answered 200 from a known-bad IP stays 100120
+    lines:
+      - '192.0.2.25 - - [{apache_ts}] "GET /claims/search?q=%27%20UNION%20SELECT%201,2-- HTTP/1.1" 200 512 "-" "Mozilla/5.0"'
+    expect: "100120"
+    expect_not: "100154"
+
+  - name: ti - a 404 with a query string from a known-bad IP stays 31101 (feeds the 400 rules)
+    lines:
+      - '192.0.2.26 - - [{apache_ts}] "GET /old/page?id=7 HTTP/1.1" 404 196 "-" "Mozilla/5.0"'
+    expect: "31101"
+    expect_not: "100154"
+
+  - name: ti - shellshock from a known-bad IP keeps its level 15 built-in rule
+    lines:
+      - '192.0.2.23 - - [{apache_ts}] "GET /cgi-bin/status HTTP/1.1" 200 512 "-" "() { :; }; /bin/bash -c id"'
+    expect: "31168"
+    expect_not: "100151"
+
+  - name: ti - page view from an unlisted IP is not a threat-intel hit
+    lines:
+      - '10.20.10.25 - - [{apache_ts}] "GET /policies/12345 HTTP/1.1" 200 5120 "-" "Mozilla/5.0"'
+    expect: "31108"
+    expect_not: "100151"
+
+  - name: ti - sql injection from a known-bad IP stays 100120 (feeds the campaign)
+    lines:
+      - '192.0.2.22 - - [{apache_ts}] "GET /claims/search?q=%27%20UNION%20SELECT%20username,password%20FROM%20users-- HTTP/1.1" 403 512 "-" "Mozilla/5.0"'
+    expect: "100120"
+    expect_not: "100151"
+
+  - name: ti - web attack campaign from a known-bad IP
+    lines:
+      - '192.0.2.30 - - [{apache_ts}] "GET /claims/search?q=%27%20UNION%20SELECT%201,2-- HTTP/1.1" 403 512 "-" "Mozilla/5.0"'
+      - '192.0.2.30 - - [{apache_ts}] "GET /search?q=<script>alert(1)</script> HTTP/1.1" 403 512 "-" "Mozilla/5.0"'
+      - '192.0.2.30 - - [{apache_ts}] "GET /documents/download?file=../../etc/passwd HTTP/1.1" 403 512 "-" "Mozilla/5.0"'
+      - '192.0.2.30 - - [{apache_ts}] "GET /.env HTTP/1.1" 404 196 "-" "Mozilla/5.0"'
+      - '192.0.2.30 - - [{apache_ts}] "GET /backup.sql HTTP/1.1" 404 196 "-" "Mozilla/5.0"'
+    expect: "100153"
+    expect_not: "100129"

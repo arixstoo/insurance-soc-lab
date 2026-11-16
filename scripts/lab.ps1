@@ -9,11 +9,12 @@
   .\scripts\lab.ps1 status
   .\scripts\lab.ps1 response     # brute force -> alert -> webhook -> 10 min block -> expiry (-Real: real host too)
   .\scripts\lab.ps1 rotate -Apply  # new passwords on a running lab
+  .\scripts\lab.ps1 ti             # refresh the threat-intel list (known-bad IPs), reload the manager
 #>
 [CmdletBinding()]
 param(
     [Parameter(Position = 0)]
-    [ValidateSet('help', 'certs', 'rotate', 'up', 'down', 'reset', 'status', 'traffic', 'response', 'test', 'lint', 'dashboards')]
+    [ValidateSet('help', 'certs', 'rotate', 'up', 'down', 'reset', 'status', 'traffic', 'response', 'ti', 'test', 'lint', 'dashboards')]
     [string]$Verb = 'help',
     [switch]$Apply,
     [switch]$Real
@@ -42,6 +43,7 @@ switch ($Verb) {
             '  status   containers, agents, passwords, retention, response chain, custom rules fired'
             '  traffic  real hosts: scripted test traffic from the lab test client'
             '  response brute force -> alert -> webhook -> 10 min block -> expiry, ~11 min (-Real: real host too)'
+            '  ti       threat intel: rebuild the known-bad IP list from the feed (cached; offline: sample), reload the manager'
             '  test     unit tests + detection tests against the real engine'
             '  lint     ruff'
             '  dashboards  (re)import dashboards/*.ndjson into the running lab'
@@ -68,6 +70,10 @@ switch ($Verb) {
         $target = if ($Real) { 'both' } else { 'simulated' }
         Invoke-Native { python scripts/check_response.py --target $target }
     }
+    'ti' {
+        Invoke-Native { python scripts/update_ti.py }
+        Invoke-Native { docker compose restart wazuh.manager }
+    }
     'test' {
         Push-Location simulator
         try { Invoke-Native { python -m pytest -q } } finally { Pop-Location }
@@ -75,6 +81,7 @@ switch ($Verb) {
         Invoke-Native { python -m pytest -q response/tests }
         Invoke-Native { python scripts/gen_catalog.py --check }
         Invoke-Native { python scripts/gen_mitre_layer.py --check }
+        Invoke-Native { python scripts/update_ti.py --sample --check }
         Invoke-Native { python detection/tests/run_tests.py }
     }
     'lint' { Invoke-Native { ruff check simulator detection/tests scripts real response } }

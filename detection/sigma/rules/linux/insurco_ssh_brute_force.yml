@@ -1,0 +1,29 @@
+title: SSH Brute Force From One Source
+id: ae2b7ae1-6e46-4404-98b4-ca95035b6a30
+name: insurco_ssh_brute_force
+status: test
+description: |
+    6 failed SSH passwords from the same source address within 2 minutes.
+    The base rule is a keyword search, which carries no field: the log pipeline must extract
+    the source address as src_ip (Wazuh: srcip of the sshd decoder) for the group-by.
+references:
+    - https://github.com/arixstoo/insurance-soc-lab/blob/main/docs/detection-catalog.md#sigma-rules
+author: insurance-soc-lab
+date: 2026-11-16
+tags:
+    - attack.credential-access
+    - attack.t1110.001
+correlation:
+    type: event_count
+    rules:
+        - insurco_sshd_failed_password
+    group-by:
+        - src_ip
+    timespan: 2m
+    condition:
+        gte: 6
+falsepositives:
+    - A monitoring tool or script with an expired password
+level: high
+wazuh_rules:
+    - '100100'

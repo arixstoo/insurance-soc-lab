@@ -2,6 +2,58 @@
 
 ## [Unreleased]
 
+### Added
+- **Sigma rules** (`detection/sigma/rules/`, 13 rules): SSH failed password + brute force
+  (`event_count`), SQL injection, XSS, path traversal, secrets probe + campaign
+  (`event_count`), bulk read on the lab's DB audit and on pgaudit + mass access
+  (`event_count` with aliases `db_user` / `user`), account created + admin group member added
+  + rogue admin (`temporal_ordered`, 4720 `TargetSid` = 4728 / 4732 `MemberSid`). Standard
+  logsources where they exist (`webserver`, Windows `security`, linux `sshd`), the lists as
+  placeholders (`%insurco_scanner_ips%`, `%insurco_db_service_accounts%`), the Wazuh rules
+  each one stands for in a `wazuh_rules` attribute.
+- `detection/tests/test_sigma.py` (115 tests): pySigma 2.1.0 loads every rule and runs all
+  its validators (the ATT&CK tag one downloads ATT&CK: required in CI, skipped offline);
+  mapped Wazuh ids exist, ATT&CK techniques equal the main Wazuh rule's, correlation windows
+  and thresholds equal `timeframe` / `frequency`; **66 agreement checks**: each Sigma rule
+  fires on the cases that expect its Wazuh rule and stays quiet on its `expect_not` cases.
+  Evaluator `detection/tests/sigma_eval.py` (test tool over pySigma's parsed rules, not a
+  backend). New `detection/requirements.txt` (pyyaml, pysigma), Dependabot watches it.
+- Catalog: generated Sigma table, field mapping, **limits of the translation** (no time of
+  day, no `ignore`, Wazuh built-in parents, raw URLs, fields the backend must extract, SIDs).
+- **Threat intel**: `scripts/update_ti.py` builds `detection/lists/ti-bad-ips` (CDB,
+  `address_match_key`) from a public feed (default abuse.ch Feodo Tracker, `--url` /
+  `TI_FEED_URL`, https or file only), cached 24 h in `out/ti/`; offline: last cache, then the
+  sample feed `detection/ti/sample-feed.txt` (RFC 5737 only). CIDRs become prefix keys or are
+  expanded; private / loopback / CGNAT / multicast / reserved ranges and anything wider than a
+  /8 are dropped. `make ti` / `lab.ps1 ti` rebuild and restart the manager; CI and `make unit`
+  run `update_ti.py --sample --check` (a live list must not be committed). 31 unit tests.
+- Rules **100150-100153**: SSH login accepted from a listed IP (12, day), plain page view
+  (6), night login (15, on 100102 / 100103), web campaign (15, on 100129); runbook
+  `threat-intel-hit.md`. Detection cases 77 -> 94 (15 TI cases and the two below), incl. a
+  brute force and a compromise from a listed IP still raising 100100 / 100101 (active response).
+- Rule **100154** (5): a 2xx / 3xx request *with a query string* from a listed IP, which
+  31108 (and so 100151) never takes. Child of 31100 below every attack sibling: XSS / SQLi
+  answered 200 and a 404 from a listed IP keep 100121 / 100120 / 31101 (4 new cases, 98 total).
+- Simulator scenario **`known_bad_ip`** (a listed `192.0.2.x` browses the portal, then logs in
+  over SSH): e2e now asserts 100151, 100154 and 100150 in the indexer. Simulator tests check
+  that `KNOWN_BAD_IPS` is in the committed list and every other attacker pool is not.
+- `e2e.sh` skips the rules whose `<time>` window excludes the manager's current hour (was:
+  every rule with a `<time>`), so the day-only 100150 is checked at midday.
+- README: threat intel row, "Portability: Sigma" section.
+
+### Found (documented)
+- **Wazuh tries sibling rules by level, highest first** (ties: load order), not in file
+  order: 100150 at level 12 first took the night logins of 100102 (level 8), and a TI child
+  of 31100 at level 10 took SQL injections before 31103. Hence 100150's day window and
+  100151 at level 6 on 31108. Added to CLAUDE.md and the catalog.
+- A blanket TI rule (`<if_level>3</if_level>` + srcip in the list) replaced every event of a
+  listed IP: no 100100, no 100101 (no active response), no 100120. Wazuh's own IoC rules
+  (`0999-malicious-ioc-rules.xml`) are built the same way; their list stays absent.
+- Real domain controllers log Domain Admins changes as 4728, which 100144 does not read
+  (coverage gap; the Sigma rule covers it).
+- New cases: an invalid-user probe is not a failed password (negative for 5760, needed by the
+  Sigma base rule), Shellshock from a listed IP keeps its level 15 built-in rule.
+
 ### Fixed
 - `rogue_admin` scenario: the 4720 and the 4732 are now written 3 s apart (was 0.2 s), more
   than the agent's file poll (`logcollector.loop_timeout=2`). At 0.2 s both lines could be

@@ -29,6 +29,9 @@ honesty and documentation matter as much as features.
 | Lint | `ruff check simulator detection/tests scripts real response` |
 | Unit tests | `cd simulator && python -m pytest -q` + `python -m pytest -q detection/tests` (rule coverage, catalog, runbook links) + `python -m pytest -q response/tests` (integration, receiver, response config) |
 | Detection tests | `python detection/tests/run_tests.py` (`-k <regex>` to filter) |
+| Python deps (tests) | `pip install -e "simulator[dev]" -r detection/requirements.txt` (pyyaml, pysigma) |
+| Sigma rules | `python -m pytest -q detection/tests/test_sigma.py` (pySigma validators + agreement with the Wazuh rules on `cases.yaml`) |
+| Threat intel | `python scripts/update_ti.py` (feed, cached; `--offline`; `--sample` = what is committed, CI `--sample --check`) · `make ti` = rebuild + restart manager |
 | Detection catalog | `python scripts/gen_catalog.py` (CI: `--check`) - never edit the generated tables by hand |
 | MITRE layer | `python scripts/gen_mitre_layer.py` (CI: `--check`) -> `docs/mitre-layer.json` |
 | Dashboards | `python scripts/import_dashboards.py` (run by `make up`) · edit panels in `scripts/build_dashboards.py`, then run it (lab up) to rebuild + re-export `dashboards/*.ndjson` · `python scripts/screenshot_dashboards.py` |
@@ -92,6 +95,19 @@ honesty and documentation matter as much as features.
   aborts a duplicate block. A block on real-linux-01 cuts `real-client` off sshd for 10 min.
 - Random simulator attacks can open 100100's `ignore` window at any time: any live check of
   a brute force needs `SIM_ATTACK_MIN/MAX=86400` (as `e2e.yml`).
+- **Sibling rules are tried by LEVEL, highest first** (ties: load order), not in file order:
+  a child at level 12 of 5715 beat 100102 (level 8). A new child must sit below the levels
+  of the siblings it must not shadow (100151 at 6 under 31108), or exclude their cases (100150
+  day window).
+- A child rule REPLACES its parent's alert: a TI child of a correlation input (5760, 100100,
+  100120-100123) starves the correlation and the active response. TI rules only go on events
+  nothing correlates on. Wazuh's IoC rules (`0999-malicious-ioc-rules.xml`) are children of
+  inputs: keep their list `etc/lists/malicious-ioc/malicious-ip` absent.
+- `address_match_key` matches prefix keys `a.b.c.` / `a.b.` / `a.` (verified): CIDRs become prefix
+  keys or are expanded (`update_ti.py`). The committed `ti-bad-ips` is the sample build (RFC 5737).
+- Sigma: one rule per file, `name` = file stem, `wazuh_rules` lists the Wazuh ids it stands for;
+  every Sigma rule needs a positive and a negative case in `cases.yaml` (`test_sigma.py`).
+  pySigma 2.x downloads ATT&CK / D3FEND for two validators (cached in `~/.cache/pysigma`).
 - Dashboards: a saved `heatmap` vis needs its full `params` (`valueAxes`...): the editor merges
   no defaults. The `range` agg with custom `label`s returns HTTP 400 (use `filters`). Panels may
   only filter on `rule.id` / `rule.groups` proven by tests (`test_dashboards.py`).
@@ -120,4 +136,5 @@ honesty and documentation matter as much as features.
 `ROADMAP.md` (phases and acceptance criteria) · `docs/architecture.md` ·
 `docs/detection-catalog.md` (tables generated) · `docs/tuning-report.md` · `docs/runbooks/` ·
 `docs/production-integration.md` · `docs/dashboards.md` · `docs/mitre-layer.json` ·
-`docs/response.md` (alert routing + active response) · `response/` (integration, receiver, tests).
+`docs/response.md` (alert routing + active response) · `response/` (integration, receiver, tests) ·
+`detection/sigma/rules/` (Sigma) · `detection/ti/` (sample feed) · `detection/lists/ti-bad-ips` (generated).
