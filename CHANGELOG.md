@@ -1,5 +1,18 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+- `rogue_admin` scenario: the 4720 and the 4732 are now written 3 s apart (was 0.2 s), more
+  than the agent's file poll (`logcollector.loop_timeout=2`). At 0.2 s both lines could be
+  read in the same poll, the 4732 matched first and 100144 raised instead of 100145: e2e on
+  `main` missed 100145 after the 0.6.0 and the 0.7.0 merges. Correction to the 0.6.0 note:
+  the lines were 0.2 s apart, not "milliseconds"; the shared poll is what made them arrive
+  together. Each scenario now has a `gap` (default 0.2 s), and `run` and `inject` share one
+  writer (`write_scenario`), so both paths use it. 9 simulator tests (gap > poll, order
+  4720 -> 4732, pauses between events only, `run` uses the gap, agent templates keep the
+  default poll). Simulator 3.1.1.
+
 ## [0.7.0] - 2026-11-15 - Response: runbooks, alert routing, active response
 
 ### Added
@@ -59,6 +72,11 @@
   then the response chain on both SSH hosts - webhook message with runbook, iptables DROP,
   the real client's TCP to sshd timing out, both blocks held 601 s (configured 600 s) and
   removed, sshd reachable again.
+- **e2e on `main` after the merge failed** (run 43769618740): 21/22 expected rules, 100145
+  missing from `rogue_admin` (100143 present) - the 0.6.0 flake again. `e2e.sh` stopped the
+  job, so the response check did not run on `main`. The `v0.7.0` release was published
+  before that run had finished; its code is the same as the green branch run (only
+  CHANGELOG / ROADMAP changed). Fixed after the release (see Unreleased).
 
 ## [0.6.0] - 2026-11-13 - SOC dashboards as code, MITRE layer
 

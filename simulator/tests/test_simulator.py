@@ -173,3 +173,53 @@ def test_timeline_rejects_a_bad_rate():
 
     with pytest.raises(ValueError):
         next(background_timeline(NOW, 1, rate=0))
+
+
+# --- two-step correlation: event order must survive the agent's file polling -------------
+
+def test_rogue_admin_events_are_spaced_by_more_than_one_logcollector_poll():
+    """100145 needs the 4720 analysed before the 4732 (e2e missed it twice at 0.2 s apart)."""
+    from insurco_sim.scenarios import LOGCOLLECTOR_POLL
+
+    rogue = SCENARIOS["rogue_admin"]
+    assert rogue.gap > LOGCOLLECTOR_POLL
+    events = rogue.build(rng(), NOW)
+    assert [json.loads(line)["EventID"] for _, line in events] == [4720, 4732]
+
+
+def test_logcollector_poll_matches_the_agent_default():
+    """LOGCOLLECTOR_POLL mirrors logcollector.loop_timeout; the agent config must not change it."""
+    from insurco_sim.scenarios import LOGCOLLECTOR_POLL
+
+    assert LOGCOLLECTOR_POLL == 2.0
+    for template in (REPO / "agents" / "ossec.conf.tpl", *(REPO / "real").glob("*/ossec.conf.tpl")):
+        assert "loop_timeout" not in template.read_text(encoding="utf-8"), template
+
+
+@pytest.mark.parametrize("name", sorted(SCENARIOS))
+def test_write_scenario_pauses_between_events_not_after(tmp_path, name):
+    from insurco_sim.cli import write_scenario
+
+    pauses: list[float] = []
+    n = write_scenario(LogWriter(tmp_path), SCENARIOS[name], rng(), NOW, pauses.append)
+    assert pauses == [SCENARIOS[name].gap] * (n - 1)
+    written = sum(len(p.read_text().splitlines()) for p in tmp_path.rglob("*.*"))
+    assert written == n
+
+
+def test_run_writes_rogue_admin_with_its_gap(tmp_path):
+    """The `run` loop uses the same helper as `inject`: the 4732 comes `gap` seconds after the 4720."""
+    from datetime import timedelta
+
+    from insurco_sim.cli import Clock, run
+
+    elapsed = [0.0]
+    sleeps: list[float] = []
+
+    def sleep(seconds: float) -> None:
+        sleeps.append(seconds)
+        elapsed[0] += seconds
+
+    clock = Clock(now=lambda: NOW + timedelta(seconds=elapsed[0]), monotonic=lambda: elapsed[0], sleep=sleep)
+    result = run(tmp_path, seed=3, duration=30, rate=0.5, attack_every=(1, 1), only=["rogue_admin"], clock=clock)
+    assert result.attacks and SCENARIOS["rogue_admin"].gap in sleeps

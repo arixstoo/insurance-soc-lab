@@ -19,6 +19,12 @@ from . import events as e
 
 Event = tuple[str, str]  # (host role, log line)
 
+# The Wazuh agent polls each log file every 2 s (agent internal option
+# logcollector.loop_timeout=2): lines written less than that apart can be read in the same
+# poll and reach analysisd together, in either order.
+LOGCOLLECTOR_POLL = 2.0
+BURST_GAP = 0.2  # default pause between the events of a scenario: attacks are bursts
+
 
 @dataclass(frozen=True)
 class Scenario:
@@ -26,6 +32,7 @@ class Scenario:
     summary: str
     expected_rules: tuple[str, ...]
     build: Callable[[random.Random, datetime], list[Event]]
+    gap: float = BURST_GAP  # seconds between two events when the scenario is written
 
 
 def background_event(rng: random.Random, now: datetime) -> Event:
@@ -105,8 +112,12 @@ SCENARIOS: dict[str, Scenario] = {s.name: s for s in [
              ("100110",), _privesc),
     # The 4732 completes the two-step correlation, so it raises 100145 *instead of* 100144
     # (one event = one alert); 100144 alone is covered by detection/tests/cases.yaml.
+    # Order matters for a two-step correlation: 100145 needs the 4720 (100143) analysed BEFORE
+    # the 4732. 0.2 s apart, both lines could arrive in one logcollector poll and the 4732 be
+    # matched first (100144 instead of 100145: e2e missed 100145 on main twice, 0.6.0 and
+    # 0.7.0). A gap longer than one poll puts the 4720 in an earlier poll.
     Scenario("rogue_admin", "A new account is created and added to Administrators",
-             ("100143", "100145"), _rogue_admin),
+             ("100143", "100145"), _rogue_admin, gap=LOGCOLLECTOR_POLL + 1),
     Scenario("password_spray", "Many accounts fail to log on from one workstation IP",
              ("100142",), _password_spray),  # 100141 is level 2 since phase 3: matched, never alerted
 ]}

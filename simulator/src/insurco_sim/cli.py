@@ -28,7 +28,7 @@ from . import catalog as c
 from . import events as e
 from . import stats
 from .profile import Flat, Profile, parse_days, parse_hours
-from .scenarios import SCENARIOS, background_event
+from .scenarios import SCENARIOS, Scenario, background_event
 
 log = logging.getLogger("insurco_sim")
 DEFAULT_OUT = Path("/var/log/insurco")
@@ -71,6 +71,17 @@ class RunStats:
     attacks: list[str] = field(default_factory=list)
 
 
+def write_scenario(writer: LogWriter, scenario: Scenario, rng: random.Random, now: datetime,
+                   sleep: Callable[[float], None] = time.sleep) -> int:
+    """Write one attack scenario, `scenario.gap` seconds between events. Returns the event count."""
+    events = scenario.build(rng, now)
+    for i, (role, line) in enumerate(events):
+        if i:
+            sleep(scenario.gap)
+        writer.write(role, line)
+    return len(events)
+
+
 def run(out_dir: Path, *, seed: int | None, duration: float, rate: float,
         attack_every: tuple[int, int], only: list[str] | None,
         profile: Profile | Flat | None = None, clock: Clock | None = None) -> RunStats:
@@ -103,9 +114,7 @@ def run(out_dir: Path, *, seed: int | None, duration: float, rate: float,
             if clock.monotonic() >= next_attack:
                 scenario = SCENARIOS[rng.choice(names)]
                 log.info("scenario %s -> expects rules %s", scenario.name, ",".join(scenario.expected_rules))
-                for role, line in scenario.build(rng, clock.now()):
-                    writer.write(role, line)
-                    clock.sleep(0.2)  # attacks are bursts, not one block
+                write_scenario(writer, scenario, rng, clock.now(), clock.sleep)
                 result.attacks.append(scenario.name)
                 next_attack = clock.monotonic() + rng.uniform(*attack_every)
             clock.sleep(rng.expovariate(rate))  # steady, irregular flow (no "waves")
@@ -183,10 +192,7 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     if args.command == "inject":
         scenario = SCENARIOS[args.scenario]
-        writer = LogWriter(args.out)
-        for role, line in scenario.build(random.Random(args.seed), datetime.now()):
-            writer.write(role, line)
-            time.sleep(0.2)
+        write_scenario(LogWriter(args.out), scenario, random.Random(args.seed), datetime.now())
         print(f"injected {scenario.name} -> expect rules {', '.join(scenario.expected_rules)}")
         return 0
     if args.command == "stats":
