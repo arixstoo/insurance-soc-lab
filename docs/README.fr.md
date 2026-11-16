@@ -2,8 +2,8 @@
 
 **Un SOC complet pour une compagnie d'assurance, en une commande** : SIEM Wazuh,
 quatre machines supervisées, un simulateur qui attaque l'entreprise toutes les
-quelques minutes, et 16 règles de détection sur mesure, chacune testée contre
-le vrai moteur Wazuh à chaque commit.
+quelques minutes, et 30 règles de détection sur mesure (25 qui lèvent une alerte),
+chacune testée contre le vrai moteur Wazuh à chaque commit (98 cas).
 
 > **Conçu dans et pour une vraie entreprise.** Ce projet a été conçu et déployé
 > une première fois pendant mon stage de cybersécurité (2026) au sein de
@@ -16,13 +16,32 @@ le vrai moteur Wazuh à chaque commit.
 ## Ce qui est détecté
 
 - Brute force SSH, puis connexion réussie depuis la même IP (compromission).
-- Connexions en dehors des heures de bureau.
+- Connexions en dehors des heures de bureau depuis l'extérieur, ou vers un compte privilégié.
 - Escalade de privilèges via sudo (shell root, modification de `/etc/shadow`).
 - Attaques web : injection SQL, XSS, path traversal, recherche de fichiers sensibles, campagnes coordonnées.
-- **Fraude interne** : lectures massives des tables clients / sinistres / paiements, répétées ou de nuit.
-- Windows : devinette de mots de passe, création de comptes, ajout au groupe Administrateurs.
+- **Fraude interne** : lectures massives des tables clients / sinistres / paiements, répétées ou de nuit
+  (comptes de service en liste blanche), sur le journal d'audit simulé comme sur un vrai `pgaudit`.
+- Windows : devinette de mots de passe, création de comptes, ajout au groupe Administrateurs, et
+  **compte créé puis promu administrateur en moins de 10 minutes**.
+- **Threat intel** : connexion, page vue, connexion de nuit ou campagne web depuis une IP connue
+  comme malveillante (flux public mis en cache, liste d'exemple hors ligne).
 
 Toutes les règles sont mappées sur MITRE ATT&CK : voir [detection-catalog.md](detection-catalog.md).
+24 h d'activité normale rejouées dans le vrai moteur donnent 3 alertes sur mesure
+([tuning-report.md](tuning-report.md)).
+
+## Au-delà de Wazuh
+
+- **Services réels** (profil compose `real`) : un vrai `sshd`, un vrai nginx et un vrai PostgreSQL
+  avec `pgaudit`, chacun avec son agent ; les mêmes familles de détection se déclenchent sur les
+  logs simulés et réels ([real-services.md](real-services.md)).
+- **Réponse** : chaque règle renvoie à son runbook ([runbooks/](runbooks/README.md)) ; les alertes
+  de niveau 12+ sont postées sur un webhook (récepteur local sur <http://localhost:8088>) ; une
+  connexion réussie après un brute force (100101) bloque l'IP source sur l'hôte visé pendant
+  10 minutes, puis le blocage est levé tout seul ([response.md](response.md)).
+- **Sigma** : les détections principales existent aussi en 13 règles Sigma, validées par pySigma en
+  CI et vérifiées **en accord avec les règles Wazuh sur les mêmes cas de test**
+  ([detection-catalog.md](detection-catalog.md#sigma-rules)).
 
 ## Démarrage rapide
 
