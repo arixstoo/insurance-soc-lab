@@ -98,7 +98,7 @@ flowchart LR
 | Background volume | `insurco-sim stats` | ~0.65 ev/s in office hours (`SIM_RATE=0.7`), spread over the 4 hosts |
 | Log line -> alert (analysisd) | `scripts/measure_latency.py` | median 0.13 s, max 2 s |
 | Log line -> searchable in `wazuh-alerts-*` | `scripts/measure_latency.py` | median 9 s, max 13 s (Filebeat batching + index refresh) |
-| 6 scenarios injected -> 14 expected rules indexed | `scripts/e2e.sh` | 25 s for the whole run |
+| Scenarios injected -> expected rules indexed | `scripts/e2e.sh` | 25 s for the whole run (phase 2: 6 scenarios, 14 rules; now 7 scenarios, 16 rules, 25 with the `real` profile) |
 
 The e2e workflow prints the same measurements for the GitHub runner.
 

@@ -17,7 +17,7 @@ class _Loader(yaml.SafeLoader):
     """safe_load that tolerates the !!python/name tag of the mermaid fence."""
 
 
-_Loader.add_multi_constructor("tag:yaml.org,2002:python/", lambda loader, suffix, node: None)
+_Loader.add_multi_constructor("tag:yaml.org,2002:python/", lambda _loader, _suffix, _node: None)
 
 
 def _nav_pages(node) -> list[str]:

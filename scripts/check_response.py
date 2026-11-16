@@ -44,7 +44,7 @@ import sys
 import time
 import urllib.request
 import xml.etree.ElementTree as ET
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
@@ -71,7 +71,6 @@ class Target:
     alert_id: str = ""
     added: datetime | None = None
     deleted: datetime | None = None
-    notes: list[str] = field(default_factory=list)
 
 
 TARGETS = {"simulated": "srv-linux-01", "real": "real-linux-01"}
