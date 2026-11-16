@@ -4,7 +4,7 @@ COMPOSE := docker compose $(if $(REAL),--profile real)
 # down / reset also stop the real hosts (compose profile `real`) when they run
 COMPOSE_ALL := docker compose --profile real
 
-.PHONY: help certs rotate up down reset status traffic response test unit detection catalog mitre dashboards noise lint
+.PHONY: help certs rotate up down reset status traffic response ti test unit detection catalog mitre dashboards noise lint
 
 help:           ## list the targets
 	@grep -E '^[a-z]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  make %-8s %s\n", $$1, $$2}'
@@ -38,6 +38,10 @@ traffic:        ## real hosts (make up REAL=1): scripted test traffic from the l
 response:       ## brute force -> alert -> webhook -> 10 min block -> expiry (~11 min; REAL=1: real host too)
 	$(PYTHON) scripts/check_response.py --target $(if $(REAL),both,simulated)
 
+ti:             ## threat intel: rebuild the known-bad IP list from the feed (cached, offline: sample), reload the manager
+	$(PYTHON) scripts/update_ti.py
+	$(COMPOSE) restart wazuh.manager
+
 test: unit detection  ## unit tests + detection tests against the real engine
 
 unit:           ## simulator + static detection and response checks (coverage, catalog, config), no Docker
@@ -46,6 +50,7 @@ unit:           ## simulator + static detection and response checks (coverage, c
 	$(PYTHON) -m pytest -q response/tests
 	$(PYTHON) scripts/gen_catalog.py --check
 	$(PYTHON) scripts/gen_mitre_layer.py --check
+	$(PYTHON) scripts/update_ti.py --sample --check
 
 detection:
 	$(PYTHON) detection/tests/run_tests.py

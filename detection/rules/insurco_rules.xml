@@ -356,4 +356,94 @@
     <group>insurco_windows,privilege_escalation,account_compromise,</group>
   </rule>
 
+  <!-- ===================================================== -->
+  <!-- Threat intel: known-bad source IPs                     -->
+  <!-- CDB list ti-bad-ips, built by scripts/update_ti.py     -->
+  <!-- ===================================================== -->
+  <!-- Wazuh cannot add levels to an alert: a matching child rule REPLACES its parent's
+       alert, and only the final rule feeds if_matched_sid / if_matched_group memory.
+       A blanket child (<if_level>3</if_level> + srcip in the list) was tried with
+       wazuh-logtest 4.14.9: 6 failed passwords from a listed IP raised 6 x the TI rule and
+       no 100100, the next login no 100101 (so no active response), a SQL injection no 100120.
+       So these rules only take events that feed no correlation and trigger no response:
+       - 100150 / 100151: activity from a listed IP that no other rule flagged;
+       - 100152 / 100153: a final InsurCo detection (nothing correlates on it) from a listed IP.
+       Left as they are on purpose: 5760, 100100, 100120-100123 (correlation inputs) and
+       100101 (the active response trigger).
+       LEVEL MATTERS: Wazuh tries sibling rules by level, highest first (ties: load order),
+       not in file order (verified: 100150 at level 12 first took the night logins of 100102,
+       level 8). Hence the day window on 100150 (at night 100102 / 100103 take a listed IP,
+       which is never internal, then 100152), and 100151 at level 6, below its siblings.
+       Wazuh's own IoC rules (0999-malicious-ioc-rules.xml: 99904 under 5716, 99905 under the
+       SQL injection rules) are children of correlation inputs: their list
+       etc/lists/malicious-ioc/malicious-ip is declared but absent, and must stay so. -->
+  <rule id="100150" level="12">
+    <if_sid>5715</if_sid>
+    <time>6 am - 10 pm</time>
+    <list field="srcip" lookup="address_match_key">etc/lists/insurco/ti-bad-ips</list>
+    <description>InsurCo - SSH login accepted from known-bad IP $(srcip) (threat intel) for $(dstuser)</description>
+    <info type="link">https://github.com/arixstoo/insurance-soc-lab/blob/main/docs/runbooks/threat-intel-hit.md</info>
+    <mitre>
+      <id>T1078</id>
+    </mitre>
+    <group>insurco_ti,threat_intel,insurco_auth,authentication_success,</group>
+  </rule>
+
+  <!-- 31108 = built-in "simple query" (2xx / 3xx, no query string), level 0. Its children
+       31103 (SQL injection, 7) and 31168 / 31169 (Shellshock, 15) are tried first. Not a child
+       of 31100: it would be tried before 31108 (level 0) and hide the Shellshock rules.
+       Requests WITH a query string never reach 31108: 100154 takes them. -->
+  <rule id="100151" level="6">
+    <if_sid>31108</if_sid>
+    <list field="srcip" lookup="address_match_key">etc/lists/insurco/ti-bad-ips</list>
+    <description>InsurCo - Page view from known-bad IP $(srcip) (threat intel), no attack pattern</description>
+    <info type="link">https://github.com/arixstoo/insurance-soc-lab/blob/main/docs/runbooks/threat-intel-hit.md</info>
+    <mitre>
+      <id>T1595</id>
+    </mitre>
+    <group>insurco_ti,threat_intel,</group>
+  </rule>
+
+  <rule id="100152" level="15">
+    <if_sid>100102,100103</if_sid>
+    <list field="srcip" lookup="address_match_key">etc/lists/insurco/ti-bad-ips</list>
+    <description>InsurCo - CRITICAL: SSH login outside office hours from known-bad IP $(srcip) (threat intel) for $(dstuser)</description>
+    <info type="link">https://github.com/arixstoo/insurance-soc-lab/blob/main/docs/runbooks/threat-intel-hit.md</info>
+    <mitre>
+      <id>T1078</id>
+    </mitre>
+    <group>insurco_ti,threat_intel,insurco_auth,after_hours,</group>
+  </rule>
+
+  <rule id="100153" level="15">
+    <if_sid>100129</if_sid>
+    <list field="srcip" lookup="address_match_key">etc/lists/insurco/ti-bad-ips</list>
+    <description>InsurCo - CRITICAL: coordinated web attack campaign from known-bad IP $(srcip) (threat intel)</description>
+    <info type="link">https://github.com/arixstoo/insurance-soc-lab/blob/main/docs/runbooks/threat-intel-hit.md</info>
+    <mitre>
+      <id>T1190</id>
+    </mitre>
+    <group>insurco_ti,threat_intel,insurco_web,coordinated_attack,</group>
+  </rule>
+
+  <!-- A 2xx / 3xx request WITH a query string from a listed IP: 31108 rejects it (not a
+       "simple query"), so it stays on 31100. Child of 31100 at level 5, so every attack
+       sibling is tried first (31103 at 7, 31104 / 31105 / 31164 ... / 31501-31516 at 6,
+       100120-100123 at 6-8; 31101 / 31120 tie at 5 but need 4xx / 5xx). Below it only
+       31108 (which never takes a "?" URL, so its Shellshock children are not hidden),
+       31530 (POST, no_log) and 31511 (wget, 0). Not in group insurco_web: it does not feed
+       the campaign 100129. -->
+  <rule id="100154" level="5">
+    <if_sid>31100</if_sid>
+    <id>^2|^3</id>
+    <url>?</url>
+    <list field="srcip" lookup="address_match_key">etc/lists/insurco/ti-bad-ips</list>
+    <description>InsurCo - Request with a query string from known-bad IP $(srcip) (threat intel), no attack pattern</description>
+    <info type="link">https://github.com/arixstoo/insurance-soc-lab/blob/main/docs/runbooks/threat-intel-hit.md</info>
+    <mitre>
+      <id>T1595</id>
+    </mitre>
+    <group>insurco_ti,threat_intel,</group>
+  </rule>
+
 </group>
