@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [1.0.0] - 2026-11-17 - Publication: docs site, README v1.0, demo
 
 ### Added
 - **Documentation site** (MkDocs Material) built from `docs/`: `mkdocs.yml` (strict), a home
@@ -49,6 +49,18 @@
 
 ### Removed
 - Dead code found in the review: `Target.notes` in `check_response.py`, an unused fixture.
+
+### Verified
+- Fresh clone of the quick start (WSL Kali, Python 3.13, README steps only): `make status`
+  OK with custom alerts 5 min 6 s after `git clone`, lab healthy at 59 s (Wazuh images
+  already pulled; a first run also downloads ~7.5 GB). The first attempt failed and found the
+  certificate permission bug above.
+- e2e on the release branch (GitHub runner, profile `real`, no sudo on the certificates):
+  25/25 expected rules, then the response chain on both SSH hosts - blocks held 601 s
+  (configured 600 s) and removed.
+- CI (lint, unit, Sigma, catalog / MITRE / TI checks, detection tests), security (Trivy x6,
+  gitleaks, CodeQL) and the strict docs build green on the release pull request; detection
+  tests 98/98 and the 24 h noise replay (3 custom alerts) locally.
 
 ## [0.8.0] - 2026-11-16 - Portability: Sigma rules, threat intel
 
