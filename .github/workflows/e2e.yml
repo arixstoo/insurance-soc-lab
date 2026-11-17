@@ -54,11 +54,9 @@ jobs:
       - name: Certificates
         run: |
           make certs
-          # The generator gives stack/certs/ to the container UIDs. curl and the Python scripts
-          # run as the runner user and only need the public CA certificate: open the directory
-          # for traversal and that one file; the private keys keep their permissions.
-          sudo chmod a+x stack/certs
-          sudo chmod a+r stack/certs/root-ca.pem
+          # make certs leaves the CA certificate readable by the runner user, as for any user
+          # (stack/certs.compose.yml); no sudo here, so this job proves the quick start.
+          test -r stack/certs/root-ca.pem
           sudo ls -l stack/certs
 
       - name: Start the lab (generated passwords, build, wait until healthy, retention)

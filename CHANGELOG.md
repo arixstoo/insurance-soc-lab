@@ -29,6 +29,12 @@
   report's limits. The 24 h noise replay was rerun with the phase 4-7 rules: still 3.
 
 ### Fixed
+- **`make up` failed on a native Linux host** (found by the fresh-clone check, WSL Kali):
+  the certificate tool leaves `stack/certs/` readable by the container UIDs only, so
+  `apply_ism.py` stopped with `Permission denied` on the CA certificate. The e2e workflow had
+  hidden it with `sudo chmod`; Windows bind mounts never showed it. `stack/certs.compose.yml`
+  now opens the directory and the public `root-ca.pem` after generating (private keys keep
+  their modes), for `make certs`, `lab.ps1 certs` and `make up`; e2e no longer uses sudo there.
 - **`make up` failed on Python 3.13+** (found on Kali, Python 3.13.9): Python's default
   `VERIFY_X509_STRICT` rejects the CA of the Wazuh certificate tool (no keyUsage
   extension), so `apply_ism.py` stopped with `CERTIFICATE_VERIFY_FAILED` and `make status`
