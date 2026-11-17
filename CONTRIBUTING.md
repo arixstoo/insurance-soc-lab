@@ -16,29 +16,35 @@ detections for the insurance / financial sector.
 ## Development setup
 
 ```bash
-pip install -e "simulator[dev]"
+pip install -e "simulator[dev]" -r detection/requirements.txt   # pyyaml, pysigma
 pre-commit install            # optional, runs ruff and basic checks on commit
 ```
 
 | Task | Command |
 |---|---|
-| Lint | `ruff check simulator detection/tests scripts` |
-| Unit tests | `pytest simulator` |
+| Lint | `ruff check simulator detection/tests scripts real response` |
+| Unit tests | `make unit` (simulator, detection static checks, response, generated files) |
 | Detection tests (needs Docker) | `python detection/tests/run_tests.py` |
 | Run the lab | `make rotate` (once), `make up`, then `make status` (PowerShell: `scripts/lab.ps1`) |
 
 ## Adding a detection
 
 1. Pick the next free ID in `100100-100199` (keep families together: auth
-   `10010x`, privesc `10011x`, web `10012x`, database `10013x`, Windows `10014x`).
+   `10010x`, privesc `10011x`, web `10012x`, database `10013x`, Windows `10014x`,
+   threat intel `10015x`).
 2. Add the rule to `detection/rules/insurco_rules.xml`. Check the parent rule in
    the [Wazuh ruleset](https://github.com/wazuh/wazuh/tree/v4.14.9/ruleset/rules)
    - do not guess its ID.
 3. Add positive and negative cases to `detection/tests/cases.yaml`. Use
-   `clock: night` / `clock: day` for rules with `<time>`.
+   `clock: night` / `clock: day` for rules with `<time>`, `at:` offsets for time windows.
+   An alerting rule (level >= 3) also needs `<info type="link">` to its runbook in
+   `docs/runbooks/`.
 4. If a simulator scenario should trigger it, add the ID to its
    `expected_rules` (a unit test checks the IDs exist and are tested).
-5. Document it in `docs/detection-catalog.md` (MITRE mapping, false positives).
+5. Run `python scripts/gen_catalog.py` and `python scripts/gen_mitre_layer.py`, then fill
+   the rule's row in the false-positive table of `docs/detection-catalog.md`.
+6. If it has a Sigma version, add it under `detection/sigma/rules/` with its own
+   positive and negative cases (`detection/tests/test_sigma.py`).
 
 ## Commits and pull requests
 

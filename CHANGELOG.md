@@ -1,5 +1,67 @@
 # Changelog
 
+## [1.0.0] - 2026-11-17 - Publication: docs site, README v1.0, demo
+
+### Added
+- **Documentation site** (MkDocs Material) built from `docs/`: `mkdocs.yml` (strict), a home
+  page, and a build hook (`scripts/mkdocs_hooks.py`) that sends links to repository files
+  outside `docs/` to GitHub, so the same Markdown works on GitHub and on the site. Workflow
+  `docs.yml`: strict build on pull requests, deploy to GitHub Pages from `main`.
+  `requirements-docs.txt` (Dependabot watches it). `test_docs_site.py`: every docs page is in
+  the nav, and the hook's link rules.
+- `docs/lessons-learned.md`: what each phase taught, from the findings recorded in this
+  changelog (engine semantics, time, noise, e2e flakes, scoped response, Sigma limits).
+- README demo GIF (`docs/img/demo.gif`): a recorded `make up` + `make status`, then both
+  dashboards, rendered by `scripts/make_demo_gif.py` from the transcripts (long build logs
+  shortened and marked as such). Social preview `docs/img/social-preview.png` (1280x640) by
+  `scripts/make_social_preview.py`, figures counted from the repository.
+
+### Changed
+- README v1.0 pass: one-paragraph pitch with current figures (30 rules, 98 cases, 13 Sigma
+  rules), quick start first with the host requirements (Python 3.10+ standard library,
+  `make`), demo GIF, security and docs badges, architecture with the real profile, threat
+  intel and response, "What I learned". The internship statement is unchanged.
+- Dashboard screenshots retaken with all 7 scenarios injected (threat intel included).
+- `docs/README.fr.md` and `CONTRIBUTING.md` brought up to phase 7 (they still said 16 rules,
+  and CONTRIBUTING had the phase 0 lint and test commands).
+- Stale statements fixed: the architecture measurement row (phase 2 counts, now dated),
+  the dashboards' level 12 threshold (implemented in phase 6, was "planned"), the tuning
+  report's limits. The 24 h noise replay was rerun with the phase 4-7 rules: still 3.
+
+### Fixed
+- **`make up` failed on a native Linux host** (found by the fresh-clone check, WSL Kali):
+  the certificate tool leaves `stack/certs/` readable by the container UIDs only, so
+  `apply_ism.py` stopped with `Permission denied` on the CA certificate. The e2e workflow had
+  hidden it with `sudo chmod`; Windows bind mounts never showed it. `stack/certs.compose.yml`
+  now opens the directory and the public `root-ca.pem` after generating (private keys keep
+  their modes), for `make certs`, `lab.ps1 certs` and `make up`; e2e no longer uses sudo there.
+- **`make up` failed on Python 3.13+** (found on Kali, Python 3.13.9): Python's default
+  `VERIFY_X509_STRICT` rejects the CA of the Wazuh certificate tool (no keyUsage
+  extension), so `apply_ism.py` stopped with `CERTIFICATE_VERIFY_FAILED` and `make status`
+  said `NOT READY`. CI runs 3.12 and never saw it. `indexer_client.lab_context()` drops only
+  that flag; chain, expiry and host name are still verified. Unit test added.
+- Webhook receiver: replies to rejected requests (405 / 404) were sent without reading the
+  request body; closing the socket with unread data sent a TCP reset and the client could
+  lose the reply (`test_viewer_is_read_only_and_ingest_has_no_ui` failed about 1 run in 3 on
+  Windows). Small bodies are drained, larger ones close the connection.
+- `response/tests/test_receiver.py` used a private address outside the allowed lab and
+  documentation ranges.
+
+### Removed
+- Dead code found in the review: `Target.notes` in `check_response.py`, an unused fixture.
+
+### Verified
+- Fresh clone of the quick start (WSL Kali, Python 3.13, README steps only): `make status`
+  OK with custom alerts 5 min 6 s after `git clone`, lab healthy at 59 s (Wazuh images
+  already pulled; a first run also downloads ~7.5 GB). The first attempt failed and found the
+  certificate permission bug above.
+- e2e on the release branch (GitHub runner, profile `real`, no sudo on the certificates):
+  25/25 expected rules, then the response chain on both SSH hosts - blocks held 601 s
+  (configured 600 s) and removed.
+- CI (lint, unit, Sigma, catalog / MITRE / TI checks, detection tests), security (Trivy x6,
+  gitleaks, CodeQL) and the strict docs build green on the release pull request; detection
+  tests 98/98 and the 24 h noise replay (3 custom alerts) locally.
+
 ## [0.8.0] - 2026-11-16 - Portability: Sigma rules, threat intel
 
 ### Added

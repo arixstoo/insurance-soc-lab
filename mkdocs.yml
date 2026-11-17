@@ -1,0 +1,64 @@
+# Documentation site, built from docs/ and published to GitHub Pages by .github/workflows/docs.yml.
+# Local preview: pip install -r requirements-docs.txt && mkdocs serve
+site_name: insurance-soc-lab
+site_description: A one-command SOC lab for a fictional insurer - Wazuh, tested detections, response, Sigma.
+site_url: https://arixstoo.github.io/insurance-soc-lab/
+repo_url: https://github.com/arixstoo/insurance-soc-lab
+repo_name: arixstoo/insurance-soc-lab
+edit_uri: edit/main/docs/
+copyright: MIT licence - Wazuh configuration files GPLv2 (stack/NOTICE.md)
+
+strict: true
+docs_dir: docs
+hooks:
+  - scripts/mkdocs_hooks.py   # links to repository files outside docs/ -> GitHub
+
+theme:
+  name: material
+  features:
+    - navigation.sections
+    - navigation.top
+    - content.code.copy
+    - search.highlight
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      toggle: { icon: material/brightness-7, name: Dark mode }
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      toggle: { icon: material/brightness-4, name: Light mode }
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - tables
+  - toc: { permalink: true }
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+
+nav:
+  - Home: index.md
+  - Architecture: architecture.md
+  - Detection:
+      - Detection catalog: detection-catalog.md
+      - Tuning report (24 h replay): tuning-report.md
+  - Response:
+      - Alert routing and active response: response.md
+      - Runbooks: runbooks/README.md
+      - SSH brute force / compromise: runbooks/ssh-brute-force.md
+      - Web attack campaign: runbooks/web-attack-campaign.md
+      - Insider data access: runbooks/insider-data-access.md
+      - Privilege escalation / rogue admin: runbooks/privilege-escalation.md
+      - Windows password guessing: runbooks/windows-password-guessing.md
+      - Threat-intel hit: runbooks/threat-intel-hit.md
+  - Lab:
+      - Dashboards: dashboards.md
+      - Real services: real-services.md
+      - From lab to production: production-integration.md
+  - Lessons learned: lessons-learned.md
+  - Résumé en français: README.fr.md

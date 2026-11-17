@@ -3,6 +3,10 @@
 services:
   generator:
     image: wazuh/wazuh-certs-generator:0.0.4
+    # The tool leaves stack/certs/ readable by the container UIDs only, and the host scripts
+    # (make up, make status, e2e) verify TLS against the CA certificate as the host user. Open
+    # the directory for traversal and that one public file; the private keys keep their modes.
+    entrypoint: ["/bin/sh", "-c", "/entrypoint.sh && chmod a+x /certificates && chmod a+r /certificates/root-ca.pem"]
     environment:
       - CERT_TOOL_VERSION=4.14
     volumes:

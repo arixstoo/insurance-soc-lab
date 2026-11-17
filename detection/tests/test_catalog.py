@@ -46,7 +46,7 @@ def test_replace_generated_keeps_hand_written_text():
         gc.replace_generated(text, {"missing": "x"})
 
 
-def test_check_mode_fails_on_a_stale_catalog(tmp_path, capsys):
+def test_check_mode_fails_on_a_stale_catalog(tmp_path):
     stale = tmp_path / "catalog.md"
     stale.write_text(gc.CATALOG.read_text(encoding="utf-8").replace("| 100100 | 10 |", "| 100100 | 3 |"),
                      encoding="utf-8")

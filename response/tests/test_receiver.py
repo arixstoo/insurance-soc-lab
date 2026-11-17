@@ -85,13 +85,13 @@ def test_runbook_link_is_shown(receiver):
 def test_messages_survive_a_restart(receiver_mod, tmp_path):
     path = tmp_path / "messages.jsonl"
     store = receiver_mod.Store(path)
-    store.add({"text": "a"}, "10.0.0.1")
-    store.add({"text": "b"}, "10.0.0.1")
+    store.add({"text": "a"}, "10.20.0.9")
+    store.add({"text": "b"}, "10.20.0.9")
     with open(path, "a", encoding="utf-8") as fh:
         fh.write('{"seq": 3, "torn')  # crash in the middle of a write
     again = receiver_mod.Store(path)
     assert [r["message"]["text"] for r in again.newest()] == ["b", "a"]
-    assert again.add({"text": "c"}, "10.0.0.1")["seq"] == 3
+    assert again.add({"text": "c"}, "10.20.0.9")["seq"] == 3
 
 
 def test_memory_is_bounded(receiver_mod, tmp_path):

@@ -77,7 +77,8 @@ Each change is also recorded next to the rule in `docs/detection-catalog.md`.
 ## Limits of this review
 
 - One simulated day, one seed. The background is a weighted random mix, not a real
-  insurer's logs; phase 4 replays real services.
+  insurer's logs. The real services of phase 4 ([real-services.md](real-services.md)) prove the
+  rules on genuine logs, but they produce test traffic, not a day of background.
 - Weekend days (x0.2 activity) produce fewer alerts; the working day is the worst case.
 - The count is per rule *alert*; an analyst would group some of them into one case.
 

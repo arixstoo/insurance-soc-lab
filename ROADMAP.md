@@ -14,7 +14,7 @@ Status: ✅ done · 🔨 in progress · ⬜ planned
 | 5 | SOC dashboards as code + MITRE layer | `v0.6.0` | ✅ |
 | 6 | Response: runbooks, alerting, active response | `v0.7.0` | ✅ |
 | 7 | Portability: Sigma rules + threat intel | `v0.8.0` | ✅ |
-| 8 | Publication: docs, demo, v1.0 | `v1.0.0` | ⬜ |
+| 8 | Publication: docs, demo, v1.0 | `v1.0.0` | ✅ |
 
 ---
 
@@ -199,11 +199,29 @@ timed block, and the block expires by itself.
 
 **Done when:** CI validates the Sigma rules; the TI rules are tested with the sample list.
 
-## Phase 8 - Publication ⬜
+## Phase 8 - Publication ✅
 
-- [ ] README with architecture diagram, GIF demo, screenshots, badges
-- [ ] Social preview image, topics, pinned as repo #1
-- [ ] `v1.0.0` release notes
-- [x] French summary (`docs/README.fr.md`)
-- [ ] Documentation site (MkDocs Material on GitHub Pages) built from `docs/`
+**Goal:** a stranger can clone, follow the README and see alerts in about 10 minutes.
+
+- [x] README with architecture diagram, GIF demo (`scripts/make_demo_gif.py`, from a recorded
+      `make up` + `make status`), screenshots, badges, "What I learned"
+      ([docs/lessons-learned.md](docs/lessons-learned.md))
+- [x] Social preview image `docs/img/social-preview.png` (1280x640, `scripts/make_social_preview.py`)
+- [x] French summary (`docs/README.fr.md`), updated for phases 4-7
+- [x] Documentation site (MkDocs Material on GitHub Pages) built from `docs/` (`docs.yml`)
+- [x] Final review: docs and code consistent (counts, IDs, commands), dead code removed,
+      confidentiality grep; found and fixed `make up` on Python 3.13+ and a receiver race
+- [x] Fresh-clone check of the quick start (WSL Kali, Python 3.13): it found that `make up`
+      could not read the CA certificate on a native Linux host (fixed in `certs.compose.yml`);
+      after the fix, clone -> `make status` OK with custom alerts in 5 min 6 s (lab healthy at
+      59 s; Wazuh images already pulled, ~7.5 GB more on a first run)
+- [x] `v1.0.0` release notes
+
+**Done when:** README quick start verified from a fresh clone; CI, e2e and docs green; release published.
+
+## After 1.0
+
+- [ ] Repository settings by the owner: upload the social preview, topics, pin as repo #1
 - [ ] Talk / workshop material: "Build a SOC lab in an afternoon"
+- [ ] CI unit tests on Python 3.13 too (the host scripts' TLS issue only showed there)
+- [ ] Optional items above: Windows VM with Sysmon, Shuffle SOAR, `ioc-hunter`
