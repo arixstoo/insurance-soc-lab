@@ -1,0 +1,9 @@
+# Default reviewer for everything in the repository.
+# GitHub requests a review from the owners below on every pull request.
+*                       @arixstoo
+
+# Areas where a wrong change silently breaks detection or confidentiality
+/detection/             @arixstoo
+/response/              @arixstoo
+/stack/                 @arixstoo
+/.github/workflows/     @arixstoo

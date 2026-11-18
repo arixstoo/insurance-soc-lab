@@ -1,0 +1,24 @@
+cff-version: 1.2.0
+message: "If you use this lab, its rules or its test approach, please cite it as below."
+type: software
+title: "insurance-soc-lab"
+abstract: >-
+  A one-command SOC lab for a fictional insurer (InsurCo): a Wazuh 4.14.9 SIEM, monitored
+  hosts, a telemetry and attack simulator, custom detection rules tested against the real
+  Wazuh engine in CI, Sigma ports, runbooks, alert routing and active response.
+authors:
+  - family-names: "Saidi"
+    given-names: "Mohamed Rostom"
+repository-code: "https://github.com/arixstoo/insurance-soc-lab"
+url: "https://arixstoo.github.io/insurance-soc-lab/"
+license: MIT
+version: 1.0.0
+date-released: 2026-11-17
+keywords:
+  - SOC
+  - SIEM
+  - Wazuh
+  - detection engineering
+  - Sigma
+  - MITRE ATT&CK
+  - blue team

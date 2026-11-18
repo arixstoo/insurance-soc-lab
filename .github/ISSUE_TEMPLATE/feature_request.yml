@@ -1,0 +1,45 @@
+name: Improvement idea
+description: Suggest an improvement to the lab, the simulator, the dashboards or the docs
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        New detection? Use the **Detection request** template instead.
+        Planned work is listed in [ROADMAP.md](https://github.com/arixstoo/insurance-soc-lab/blob/main/ROADMAP.md) - please check it first.
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Simulator / scenarios
+        - Real services (profile real)
+        - Dashboards
+        - Response (webhook, active response, runbooks)
+        - Threat intel / Sigma
+        - Documentation
+        - CI / tooling
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What is missing or hard today? Who does it affect (analyst, someone running the lab, a contributor)?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+      description: What you would change, and how it could be tested.
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: Scope check
+      options:
+        - label: This stays defensive and inside the lab (no offensive tooling, no traffic outside the lab's containers).
+          required: true
+        - label: I removed any real IP address, hostname, username or credential.
+          required: true

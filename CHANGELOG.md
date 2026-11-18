@@ -1,5 +1,18 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+- Repository hygiene: `CODEOWNERS`, `CITATION.cff`, `SUPPORT.md`, an "Improvement idea" issue
+  template, categories for generated release notes (`.github/release.yml`), and a link to the
+  documentation site from the new-issue page.
+- OpenSSF Scorecard workflow (`scorecard.yml`, actions pinned to SHAs like the others) and its
+  badge, plus a release badge, in the README.
+
+### Changed
+- Pull request template: lint and test commands brought up to date (`real`, `response`,
+  `make unit`), type of change, and a reminder that generated files are rebuilt, not edited.
+
 ## [1.0.0] - 2026-11-17 - Publication: docs site, README v1.0, demo
 
 ### Added
